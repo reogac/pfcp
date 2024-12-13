@@ -2,7 +2,7 @@ package ie
 
 import (
 	"encoding/binary"
-	"etrib5gc/pfcp"
+	"github.com/reogac/pfcp"
 	"fmt"
 	"net"
 

@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/binary"
 	"encoding/json"
-	"etrib5gc/pfcp/ie"
+	"github.com/reogac/pfcp/ie"
 	"fmt"
 	"net"
 	"testing"

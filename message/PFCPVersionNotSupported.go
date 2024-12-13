@@ -1,7 +1,7 @@
 package message
 
 import (
-	"etrib5gc/pfcp/ie"
+	"github.com/reogac/pfcp/ie"
 
 	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
 )

@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"etrib5gc/pfcp"
+	"github.com/reogac/pfcp"
 )
 
 // Apply Action IE bits definition
