@@ -2,18 +2,10 @@ package pfcp
 
 import (
 	"encoding/binary"
-	"etrib5gc/logctx"
 
 	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
 )
 
-var log logctx.LogWriter
-
-func init() {
-	log = logctx.WithFields(logctx.Fields{
-		"mod": "pfcp",
-	})
-}
 func MarshalUint8(v uint8) []byte {
 	return []byte{v}
 }
