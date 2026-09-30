@@ -1,12 +1,18 @@
 package message
 
-import (
-	"github.com/reogac/sbi/models"
-)
-
 type AssociationRequest struct {
-	Slice        models.Snssai
+	Slice        Snssai
 	DataNetworks []string
+}
+
+// Snssai is the slice an association is for. It is declared here rather than
+// taken from the SBI models so that this library imports no SBI code: the SBI
+// library's N4 service carries these messages, and a dependency back would tie
+// the two into a cycle. The JSON tags are the models' own, so the encoding on
+// the wire is unchanged.
+type Snssai struct {
+	Sd  string `json:"sd,omitempty"`
+	Sst int    `json:"sst"`
 }
 
 type AssociationResponse struct {
