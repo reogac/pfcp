@@ -97,7 +97,7 @@ func (ie *VolumeMeasurement) Bytes() (wire []byte) {
 		binary.BigEndian.PutUint64(wire[offset:offset+8], ie.DownlinkNumberOfPackets)
 	}
 
-	return nil
+	return wire
 }
 func (ie *VolumeMeasurement) UnmarshalBinary(wire []byte) (err error) {
 	l := len(wire)
