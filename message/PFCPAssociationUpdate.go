@@ -33,7 +33,7 @@ func (t *PFCPAssociationUpdateRequest) Field() tlv.Field {
 	if t.CPFunctionFeatures != nil {
 		fields = append(fields, tlv.TLVFrom(ie.CP_FUNCTION_FEATURES_TYPE, tlv.Bytes(pfcp.MarshalUint8(*t.CPFunctionFeatures))))
 	}
-	for len(t.UserPlaneIPResourceInformation) > 0 {
+	if len(t.UserPlaneIPResourceInformation) > 0 {
 		fields = append(fields, tlv.TLVFrom(ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE, tlv.Bytes(t.UserPlaneIPResourceInformation)))
 	}
 	if len(t.PFCPAssociationReleaseRequest) > 0 {
@@ -166,7 +166,7 @@ func (t *PFCPAssociationUpdateResponse) Field() tlv.Field {
 	if t.CPFunctionFeatures != nil {
 		fields = append(fields, tlv.TLVFrom(ie.CP_FUNCTION_FEATURES_TYPE, tlv.Bytes(pfcp.MarshalUint8(*t.CPFunctionFeatures))))
 	}
-	for len(t.UserPlaneIPResourceInformation) > 0 {
+	if len(t.UserPlaneIPResourceInformation) > 0 {
 		fields = append(fields, tlv.TLVFrom(ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE, tlv.Bytes(t.UserPlaneIPResourceInformation)))
 	}
 	if t.UEIPAddressUsageInformation != nil {

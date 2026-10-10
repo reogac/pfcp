@@ -44,13 +44,13 @@ func (t *CreateTrafficEndpoint) Field() tlv.Field {
 	if len(t.EthernetPDUSessionInformation) > 0 {
 		fields = append(fields, tlv.TLVFrom(ETHERNET_PDU_SESSION_INFORMATION_TYPE, tlv.Bytes(t.EthernetPDUSessionInformation)))
 	}
-	for len(t.FramedRoute) > 0 {
+	if len(t.FramedRoute) > 0 {
 		fields = append(fields, tlv.TLVFrom(FRAMED_ROUTE_TYPE, tlv.Bytes(t.FramedRoute)))
 	}
 	if len(t.FramedRouting) > 0 {
 		fields = append(fields, tlv.TLVFrom(FRAMED_ROUTING_TYPE, tlv.Bytes(t.FramedRouting)))
 	}
-	for len(t.FramedIPv6Route) > 0 {
+	if len(t.FramedIPv6Route) > 0 {
 		fields = append(fields, tlv.TLVFrom(FRAMED_IPV6_ROUTE_TYPE, tlv.Bytes(t.FramedIPv6Route)))
 	}
 	if t.QFI != nil {

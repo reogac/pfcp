@@ -72,7 +72,7 @@ func (t *PDI) Field() tlv.Field {
 	if len(t.FramedRouting) > 0 {
 		fields = append(fields, tlv.TLVFrom(FRAMED_ROUTING_TYPE, tlv.Bytes(t.FramedRouting)))
 	}
-	for len(t.FramedIPv6Route) > 0 {
+	if len(t.FramedIPv6Route) > 0 {
 		fields = append(fields, tlv.TLVFrom(FRAMED_IPV6_ROUTE_TYPE, tlv.Bytes(t.FramedIPv6Route)))
 	}
 	if len(t.SourceInterfaceType) > 0 {
