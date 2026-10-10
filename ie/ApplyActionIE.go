@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp"
+	"github.com/reogac/pfcp/tlv"
 )
 
 // Apply Action IE bits definition
@@ -86,9 +86,27 @@ func (a *ApplyAction) MBSU() bool {
 	return a.Flags&APPLY_ACT_MBSU != 0
 }
 
+// Bytes writes Flags in the spec's octet order (TS 29.244 §8.2.26): the low
+// byte is octet 5 (DROP to DFRT) and the high byte octet 6 (EDRT to MBSU), so
+// the value is not a big-endian uint16. Octet 6 is left out while it is zero,
+// which is the one-octet form a peer from before it existed expects.
 func (ie *ApplyAction) Bytes() []byte {
-	return pfcp.MarshalUint16(ie.Flags)
+	if ie.Flags>>8 == 0 {
+		return []byte{byte(ie.Flags)}
+	}
+	return []byte{byte(ie.Flags), byte(ie.Flags >> 8)}
 }
+
+// UnmarshalBinary takes octet 5 alone or with octet 6, and ignores any later
+// octet a newer release adds.
 func (ie *ApplyAction) UnmarshalBinary(wire []byte) (err error) {
-	return pfcp.UnmarshalUint16(wire, &ie.Flags)
+	switch len(wire) {
+	case 0:
+		return tlv.ErrIncomplete
+	case 1:
+		ie.Flags = uint16(wire[0])
+	default:
+		ie.Flags = uint16(wire[0]) | uint16(wire[1])<<8
+	}
+	return nil
 }

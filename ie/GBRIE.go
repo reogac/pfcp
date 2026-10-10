@@ -1,32 +1,31 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp"
-
 	"github.com/reogac/pfcp/tlv"
 )
 
-func NewGBR(ul, dl uint32) *GBR {
+func NewGBR(ul, dl uint64) *GBR {
 	return &GBR{
 		Ul: ul,
 		Dl: dl,
 	}
 }
 
+// GBR is the uplink and downlink bitrate in kbps, each five octets on the
+// wire (TS 29.244 §8.2.9).
 type GBR struct {
-	Ul, Dl uint32
+	Ul, Dl uint64
 }
 
 func (ie *GBR) Bytes() []byte {
-	return append(pfcp.MarshalUint32(ie.Ul), pfcp.MarshalUint32(ie.Dl)...)
+	return appendBitrate(appendBitrate(make([]byte, 0, 2*bitrateLen), ie.Ul), ie.Dl)
 }
 func (ie *GBR) UnmarshalBinary(wire []byte) error {
-	if len(wire) < 8 {
+	if len(wire) < 2*bitrateLen {
 		return tlv.ErrIncomplete
-	} else if len(wire) > 8 {
+	} else if len(wire) > 2*bitrateLen {
 		return tlv.ErrTail
 	}
-	pfcp.UnmarshalUint32(wire[0:4], &ie.Ul)
-	pfcp.UnmarshalUint32(wire[4:], &ie.Dl)
+	ie.Ul, ie.Dl = bitrate(wire[:bitrateLen]), bitrate(wire[bitrateLen:])
 	return nil
 }

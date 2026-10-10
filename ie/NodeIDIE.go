@@ -79,7 +79,9 @@ func (ie *NodeID) UnmarshalBinary(wire []byte) (err error) {
 	if len(wire) < 1 {
 		return tlv.ErrIncomplete
 	}
-	switch wire[0] {
+	//the type is the low four bits; the rest are spare (TS 29.244 §8.2.38)
+	ie.nodeType = wire[0] & 0x0f
+	switch ie.nodeType {
 	case NodeIdTypeIpv4Address:
 		if len(wire) < 1+net.IPv4len {
 			return tlv.ErrIncomplete

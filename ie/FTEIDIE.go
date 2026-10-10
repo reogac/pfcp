@@ -11,12 +11,24 @@ type FTEID struct {
 	teid   uint32
 	v4, v6 net.IP
 	ch     bool
-	chId   *uint8
+	//chV4 and chV6 are the address families a CHOOSE asks for, which TS 29.244
+	//§8.2.3 carries in the V4 and V6 flags with no address behind them
+	chV4, chV6 bool
+	chId       *uint8
 }
 
+// NewChFTEID asks the UP function to choose an IPv4 F-TEID.
 func NewChFTEID(chId *uint8) *FTEID {
+	return NewChooseFTEID(true, false, chId)
+}
+
+// NewChooseFTEID asks the UP function to choose an F-TEID in the families
+// named; at least one must be.
+func NewChooseFTEID(v4, v6 bool, chId *uint8) *FTEID {
 	return &FTEID{
 		ch:   true,
+		chV4: v4,
+		chV6: v6,
 		chId: chId,
 	}
 }
@@ -53,9 +65,18 @@ func (ie *FTEID) ChooseId() *uint8 {
 	return ie.chId
 }
 
+// ChooseV4 and ChooseV6 are the families a CHOOSE asks for.
+func (ie *FTEID) ChooseV4() bool {
+	return ie.chV4
+}
+
+func (ie *FTEID) ChooseV6() bool {
+	return ie.chV6
+}
+
 func (ie *FTEID) Bytes() (wire []byte) {
-	hasV4 := len(ie.v4) > 0
-	hasV6 := len(ie.v6) > 0
+	hasV4 := len(ie.v4) > 0 || ie.ch && ie.chV4
+	hasV6 := len(ie.v6) > 0 || ie.ch && ie.chV6
 	var flags uint8
 
 	if hasV4 {
@@ -84,8 +105,8 @@ func (ie *FTEID) Bytes() (wire []byte) {
 		offset := 5
 		if hasV4 {
 			copy(wire[offset:offset+net.IPv4len], ie.v4)
+			offset += net.IPv4len
 		}
-		offset += net.IPv4len
 		if hasV6 {
 			copy(wire[offset:offset+net.IPv6len], ie.v6)
 		}
@@ -134,6 +155,7 @@ func (ie *FTEID) UnmarshalBinary(wire []byte) error {
 		}
 
 	} else {
+		ie.chV4, ie.chV6 = hasV4, hasV6
 		if chId {
 			if offset+1 > wireLen {
 				return tlv.ErrIncomplete
