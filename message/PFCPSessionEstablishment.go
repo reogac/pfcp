@@ -34,7 +34,7 @@ type PFCPSessionEstablishmentRequest struct {
 	L2TPTunnelInformation              *ie.L2TPTunnelInformation              //L2TP Tunnel Information
 	L2TPSessionInformation             *ie.L2TPSessionInformation             //L2TP Session Information
 	GroupId                            []byte                                 //Group ID
-	MBSSessionN4mbControlInformation   ie.MBSSessionN4mbControlInformation    //MBS Session N4mb Control Information
+	MBSSessionN4mbControlInformation   *ie.MBSSessionN4mbControlInformation   //MBS Session N4mb Control Information
 	MBSSessionN4ControlInformation     *ie.MBSSessionN4ControlInformation     //MBS Session N4 Control Information
 	DSCPtoPPIControlInformation        *ie.DSCPtoPPIControlInformation        //DSCP to PPI Control Information
 	FQCSIDList                         []ie.FQCSID                            //FQ-CSID
@@ -113,7 +113,9 @@ func (t *PFCPSessionEstablishmentRequest) Field() tlv.Field {
 	if len(t.GroupId) > 0 {
 		fields = append(fields, tlv.TLVFrom(ie.GROUP_ID_TYPE, tlv.Bytes(t.GroupId)))
 	}
-	fields = append(fields, t.MBSSessionN4mbControlInformation.Field())
+	if t.MBSSessionN4mbControlInformation != nil {
+		fields = append(fields, t.MBSSessionN4mbControlInformation.Field())
+	}
 	if t.MBSSessionN4ControlInformation != nil {
 		fields = append(fields, t.MBSSessionN4ControlInformation.Field())
 	}
@@ -230,7 +232,10 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 		case ie.GROUP_ID_TYPE:
 			t.GroupId = de.Value
 		case ie.MBS_SESSION_N4MB_CONTROL_INFORMATION_TYPE:
-			err = de.UnmarshalValue(&t.MBSSessionN4mbControlInformation)
+			var v ie.MBSSessionN4mbControlInformation
+			if err = de.UnmarshalValue(&v); err == nil {
+				t.MBSSessionN4mbControlInformation = &v
+			}
 		case ie.MBS_SESSION_N4_CONTROL_INFORMATION_TYPE:
 			var v ie.MBSSessionN4ControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
