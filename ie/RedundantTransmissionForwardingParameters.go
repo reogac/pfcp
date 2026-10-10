@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Redundant Transmission Forwarding Parameters' data structure */
@@ -21,8 +21,11 @@ func (t *RedundantTransmissionForwardingParameters) Field() tlv.Field {
 
 func (t *RedundantTransmissionForwardingParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = RedundantTransmissionForwardingParameters{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case OUTER_HEADER_CREATION_TYPE:
 			err = de.UnmarshalValue(&t.OuterHeaderCreation)

@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 const (

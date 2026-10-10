@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'L2TP Tunnel Information' data structure */
@@ -25,8 +25,11 @@ func (t *L2TPTunnelInformation) Field() tlv.Field {
 
 func (t *L2TPTunnelInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = L2TPTunnelInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case LNS_ADDRESS_TYPE:
 			t.LNSAddress = de.Value

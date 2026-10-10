@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Session Change Info' data structure */
@@ -29,8 +29,11 @@ func (t *PFCPSessionChangeInfo) Field() tlv.Field {
 
 func (t *PFCPSessionChangeInfo) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionChangeInfo{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case FQ_CSID_TYPE:
 			var v FQCSID

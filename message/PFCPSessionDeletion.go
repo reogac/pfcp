@@ -4,7 +4,7 @@ import (
 	"github.com/reogac/pfcp"
 	"github.com/reogac/pfcp/ie"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Session Deletion Request' data structure */
@@ -18,8 +18,11 @@ func (t *PFCPSessionDeletionRequest) Field() tlv.Field {
 
 func (t *PFCPSessionDeletionRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionDeletionRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		default:
 			err = tlv.ErrCritical
@@ -101,8 +104,11 @@ func (t *PFCPSessionDeletionResponse) Field() tlv.Field {
 
 func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionDeletionResponse{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.CAUSE_TYPE:
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)

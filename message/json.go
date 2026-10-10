@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/json"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 func jsonMarshal(t tlv.Fielder) (buf []byte, err error) {

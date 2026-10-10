@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Update URR' data structure */
@@ -143,8 +143,11 @@ func (t *UpdateURR) Field() tlv.Field {
 
 func (t *UpdateURR) UnmarshalBinary(buf []byte) (err error) {
 	*t = UpdateURR{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case URR_ID_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.URRID)

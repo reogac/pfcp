@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Remove Traffic Endpoint' data structure */
@@ -17,8 +17,11 @@ func (t *RemoveTrafficEndpoint) Field() tlv.Field {
 
 func (t *RemoveTrafficEndpoint) UnmarshalBinary(buf []byte) (err error) {
 	*t = RemoveTrafficEndpoint{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case TRAFFIC_ENDPOINT_ID_TYPE:
 			t.TrafficEndpointID = de.Value

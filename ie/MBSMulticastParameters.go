@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'MBS Multicast Parameters' data structure */
@@ -33,8 +33,11 @@ func (t *MBSMulticastParameters) Field() tlv.Field {
 
 func (t *MBSMulticastParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = MBSMulticastParameters{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case DESTINATION_INTERFACE_TYPE:
 			err = pfcp.UnmarshalUint8(de.Value, &t.DestinationInterface)

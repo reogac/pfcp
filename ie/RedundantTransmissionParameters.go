@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Redundant Transmission Parameters' data structure */
@@ -19,8 +19,11 @@ func (t *RedundantTransmissionParameters) Field() tlv.Field {
 
 func (t *RedundantTransmissionParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = RedundantTransmissionParameters{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case NETWORK_INSTANCE_TYPE:
 			t.NetworkInstanceforRedundantTransmission = de.Value

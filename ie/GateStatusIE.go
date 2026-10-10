@@ -1,6 +1,6 @@
 package ie
 
-import "github.com/usnistgov/ndn-dpdk/ndn/tlv"
+import "github.com/reogac/pfcp/tlv"
 
 const (
 	GateStatusOpen   uint8 = 1

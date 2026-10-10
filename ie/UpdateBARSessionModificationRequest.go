@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Update BAR Session Modification Request' data structure */
@@ -31,8 +31,11 @@ func (t *UpdateBARSessionModificationRequest) Field() tlv.Field {
 
 func (t *UpdateBARSessionModificationRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = UpdateBARSessionModificationRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case BAR_ID_TYPE:
 			err = pfcp.UnmarshalUint8(de.Value, &t.BARID)

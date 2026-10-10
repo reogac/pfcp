@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Non-3GPP Access Forwarding Action Information' data structure */
@@ -35,8 +35,11 @@ func (t *NonAccessForwardingActionInformation) Field() tlv.Field {
 
 func (t *NonAccessForwardingActionInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = NonAccessForwardingActionInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case FAR_ID_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.FARID)

@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Create QER' data structure */
@@ -71,8 +71,11 @@ func (t *CreateQER) Field() tlv.Field {
 
 func (t *CreateQER) UnmarshalBinary(buf []byte) (err error) {
 	*t = CreateQER{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case QER_ID_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.QERID)

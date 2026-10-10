@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'UE IP address Pool Information' data structure */
@@ -29,8 +29,11 @@ func (t *UEIPaddressPoolInformation) Field() tlv.Field {
 
 func (t *UEIPaddressPoolInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = UEIPaddressPoolInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case UE_IP_ADDRESS_TYPE:
 			err = de.UnmarshalValue(&t.UEIPaddressPoolIdentity)

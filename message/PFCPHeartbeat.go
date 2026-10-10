@@ -4,7 +4,7 @@ import (
 	"github.com/reogac/pfcp"
 	"github.com/reogac/pfcp/ie"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Heartbeat Request' data structure */
@@ -24,8 +24,11 @@ func (t *PFCPHeartbeatRequest) Field() tlv.Field {
 
 func (t *PFCPHeartbeatRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPHeartbeatRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.RECOVERY_TIME_STAMP_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.RecoveryTimeStamp)
@@ -75,8 +78,11 @@ func (t *PFCPHeartbeatResponse) Field() tlv.Field {
 
 func (t *PFCPHeartbeatResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPHeartbeatResponse{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.RECOVERY_TIME_STAMP_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.RecoveryTimeStamp)

@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFD context' data structure */
@@ -17,8 +17,11 @@ func (t *PFDcontext) Field() tlv.Field {
 
 func (t *PFDcontext) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFDcontext{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case PFD_CONTENTS_TYPE:
 			t.PFDContents = de.Value

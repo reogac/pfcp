@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Load Control Information' data structure */
@@ -19,8 +19,11 @@ func (t *LoadControlInformation) Field() tlv.Field {
 
 func (t *LoadControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = LoadControlInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case SEQUENCE_NUMBER_TYPE:
 			t.LoadControlSequenceNumber = de.Value

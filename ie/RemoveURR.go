@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Remove URR' data structure */
@@ -19,8 +19,11 @@ func (t *RemoveURR) Field() tlv.Field {
 
 func (t *RemoveURR) UnmarshalBinary(buf []byte) (err error) {
 	*t = RemoveURR{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case URR_ID_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.URRID)

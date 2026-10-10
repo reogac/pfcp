@@ -4,7 +4,7 @@ import (
 	"github.com/reogac/pfcp"
 	"github.com/reogac/pfcp/ie"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Association Release Request' data structure */
@@ -20,8 +20,11 @@ func (t *PFCPAssociationReleaseRequest) Field() tlv.Field {
 
 func (t *PFCPAssociationReleaseRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPAssociationReleaseRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			err = de.UnmarshalValue(&t.NodeID)
@@ -71,8 +74,11 @@ func (t *PFCPAssociationReleaseResponse) Field() tlv.Field {
 
 func (t *PFCPAssociationReleaseResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPAssociationReleaseResponse{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			err = de.UnmarshalValue(&t.NodeID)

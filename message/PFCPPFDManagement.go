@@ -4,7 +4,7 @@ import (
 	"github.com/reogac/pfcp"
 	"github.com/reogac/pfcp/ie"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP PFD Management Request' data structure */
@@ -26,8 +26,11 @@ func (t *PFCPPFDManagementRequest) Field() tlv.Field {
 
 func (t *PFCPPFDManagementRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPPFDManagementRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.APPLICATION_ID_S_PFDS_TYPE:
 			var v ie.ApplicationIDsPFDs
@@ -91,8 +94,11 @@ func (t *PFCPPFDManagementResponse) Field() tlv.Field {
 
 func (t *PFCPPFDManagementResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPPFDManagementResponse{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.CAUSE_TYPE:
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)

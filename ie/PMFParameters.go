@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PMF Parameters' data structure */
@@ -23,8 +23,11 @@ func (t *PMFParameters) Field() tlv.Field {
 
 func (t *PMFParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = PMFParameters{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case PMF_ADDRESS_INFORMATION_TYPE:
 			t.PMFAddressInformation = de.Value

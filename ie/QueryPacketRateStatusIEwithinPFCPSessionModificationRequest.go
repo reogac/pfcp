@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Query Packet Rate Status IE within PFCP Session Modification Request' data structure */
@@ -19,8 +19,11 @@ func (t *QueryPacketRateStatusIEwithinPFCPSessionModificationRequest) Field() tl
 
 func (t *QueryPacketRateStatusIEwithinPFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = QueryPacketRateStatusIEwithinPFCPSessionModificationRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case QER_ID_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.QERID)

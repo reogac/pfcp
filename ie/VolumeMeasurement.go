@@ -3,7 +3,7 @@ package ie
 import (
 	"encoding/binary"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 type VolumeMeasurement struct {

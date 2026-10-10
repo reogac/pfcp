@@ -4,7 +4,7 @@ import (
 	"github.com/reogac/pfcp"
 	"github.com/reogac/pfcp/ie"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Session Modification Request' data structure */
@@ -186,8 +186,11 @@ func (t *PFCPSessionModificationRequest) Field() tlv.Field {
 
 func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionModificationRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.F_SEID_TYPE:
 			var v ie.FSEID
@@ -475,8 +478,11 @@ func (t *PFCPSessionModificationResponse) Field() tlv.Field {
 
 func (t *PFCPSessionModificationResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionModificationResponse{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.CAUSE_TYPE:
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)

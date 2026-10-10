@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Overload Control Information' data structure */
@@ -25,8 +25,11 @@ func (t *OverloadControlInformation) Field() tlv.Field {
 
 func (t *OverloadControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = OverloadControlInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case SEQUENCE_NUMBER_TYPE:
 			t.OverloadControlSequenceNumber = de.Value

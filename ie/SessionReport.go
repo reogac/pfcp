@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Session Report' data structure */
@@ -25,8 +25,11 @@ func (t *SessionReport) Field() tlv.Field {
 
 func (t *SessionReport) UnmarshalBinary(buf []byte) (err error) {
 	*t = SessionReport{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case SRR_ID_TYPE:
 			t.SRRID = de.Value

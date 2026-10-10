@@ -3,7 +3,7 @@ package ie
 import (
 	"net"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 type UEIPAddress struct {

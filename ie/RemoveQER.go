@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Remove QER' data structure */
@@ -19,8 +19,11 @@ func (t *RemoveQER) Field() tlv.Field {
 
 func (t *RemoveQER) UnmarshalBinary(buf []byte) (err error) {
 	*t = RemoveQER{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case QER_ID_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.QERID)

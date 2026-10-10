@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Application ID's PFDs' data structure */
@@ -21,8 +21,11 @@ func (t *ApplicationIDsPFDs) Field() tlv.Field {
 
 func (t *ApplicationIDsPFDs) UnmarshalBinary(buf []byte) (err error) {
 	*t = ApplicationIDsPFDs{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case APPLICATION_ID_TYPE:
 			err = de.UnmarshalValue(&t.ApplicationID)

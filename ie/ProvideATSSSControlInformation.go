@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Provide ATSSS Control Information' data structure */
@@ -27,8 +27,11 @@ func (t *ProvideATSSSControlInformation) Field() tlv.Field {
 
 func (t *ProvideATSSSControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = ProvideATSSSControlInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case MPTCP_CONTROL_INFORMATION_TYPE:
 			t.MPTCPControlInformation = de.Value

@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Create FAR' data structure */
@@ -45,8 +45,11 @@ func (t *CreateFAR) Field() tlv.Field {
 
 func (t *CreateFAR) UnmarshalBinary(buf []byte) (err error) {
 	*t = CreateFAR{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case FAR_ID_TYPE:
 			err = pfcp.UnmarshalUint32(de.Value, &t.FARID)

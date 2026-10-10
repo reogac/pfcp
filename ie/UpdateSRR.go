@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Update SRR' data structure */
@@ -29,8 +29,11 @@ func (t *UpdateSRR) Field() tlv.Field {
 
 func (t *UpdateSRR) UnmarshalBinary(buf []byte) (err error) {
 	*t = UpdateSRR{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case SRR_ID_TYPE:
 			t.SRRID = de.Value

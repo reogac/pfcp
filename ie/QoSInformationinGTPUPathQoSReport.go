@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'QoS Information in GTP-U Path QoS Report' data structure */
@@ -29,8 +29,11 @@ func (t *QoSInformationinGTPUPathQoSReport) Field() tlv.Field {
 
 func (t *QoSInformationinGTPUPathQoSReport) UnmarshalBinary(buf []byte) (err error) {
 	*t = QoSInformationinGTPUPathQoSReport{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case AVERAGE_PACKET_DELAY_TYPE:
 			t.AveragePacketDelay = de.Value

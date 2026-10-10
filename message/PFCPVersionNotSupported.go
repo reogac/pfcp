@@ -3,7 +3,7 @@ package message
 import (
 	"github.com/reogac/pfcp/ie"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Version Not Supported Response' data structure */
@@ -17,8 +17,11 @@ func (t *PFCPVersionNotSupportedResponse) Field() tlv.Field {
 
 func (t *PFCPVersionNotSupportedResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPVersionNotSupportedResponse{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		default:
 			err = tlv.ErrCritical

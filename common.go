@@ -3,7 +3,7 @@ package pfcp
 import (
 	"encoding/binary"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 func MarshalUint8(v uint8) []byte {

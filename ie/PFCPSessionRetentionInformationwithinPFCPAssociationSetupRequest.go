@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Session Retention Information within PFCP Association Setup Request' data structure */
@@ -19,8 +19,11 @@ func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) Field
 
 func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case CP_PFCP_ENTITY_IP_ADDRESS_TYPE:
 			t.CPPFCPEntityIPAddress = de.Value

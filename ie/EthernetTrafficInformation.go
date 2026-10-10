@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Ethernet Traffic Information' data structure */
@@ -23,8 +23,11 @@ func (t *EthernetTrafficInformation) Field() tlv.Field {
 
 func (t *EthernetTrafficInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = EthernetTrafficInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case MAC_ADDRESSES_DETECTED_TYPE:
 			t.MACAddressesDetected = de.Value

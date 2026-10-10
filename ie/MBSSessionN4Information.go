@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'MBS Session N4 Information' data structure */
@@ -29,8 +29,11 @@ func (t *MBSSessionN4Information) Field() tlv.Field {
 
 func (t *MBSSessionN4Information) UnmarshalBinary(buf []byte) (err error) {
 	*t = MBSSessionN4Information{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case MBS_SESSION_IDENTIFIER_TYPE:
 			t.MBSSessionIdentifier = de.Value

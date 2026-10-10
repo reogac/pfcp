@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Clock Drift Control Information' data structure */
@@ -33,8 +33,11 @@ func (t *ClockDriftControlInformation) Field() tlv.Field {
 
 func (t *ClockDriftControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = ClockDriftControlInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case REQUESTED_CLOCK_DRIFT_INFORMATION_TYPE:
 			t.RequestedClockDriftInformation = de.Value

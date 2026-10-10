@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Update Duplicating Parameters' data structure */
@@ -33,8 +33,11 @@ func (t *UpdateDuplicatingParameters) Field() tlv.Field {
 
 func (t *UpdateDuplicatingParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = UpdateDuplicatingParameters{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case DESTINATION_INTERFACE_TYPE:
 			var v uint8

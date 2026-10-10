@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Ethernet Packet Filter' data structure */
@@ -43,8 +43,11 @@ func (t *EthernetPacketFilter) Field() tlv.Field {
 
 func (t *EthernetPacketFilter) UnmarshalBinary(buf []byte) (err error) {
 	*t = EthernetPacketFilter{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ETHERNET_FILTER_ID_TYPE:
 			t.EthernetFilterID = de.Value

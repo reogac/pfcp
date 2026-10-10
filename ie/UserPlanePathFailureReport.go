@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'User Plane Path Failure Report' data structure */
@@ -17,8 +17,11 @@ func (t *UserPlanePathFailureReport) Field() tlv.Field {
 
 func (t *UserPlanePathFailureReport) UnmarshalBinary(buf []byte) (err error) {
 	*t = UserPlanePathFailureReport{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case REMOTE_GTP_U_PEER_TYPE:
 			t.RemoteGTPUPeer = de.Value

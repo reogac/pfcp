@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Leave IP Multicast Information IE within Usage Report' data structure */
@@ -21,8 +21,11 @@ func (t *LeaveIPMulticastInformationIEwithinUsageReport) Field() tlv.Field {
 
 func (t *LeaveIPMulticastInformationIEwithinUsageReport) UnmarshalBinary(buf []byte) (err error) {
 	*t = LeaveIPMulticastInformationIEwithinUsageReport{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case IP_MULTICAST_ADDRESS_TYPE:
 			t.IPMulticastAddress = de.Value

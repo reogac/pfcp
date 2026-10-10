@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Ethernet Context Information' data structure */
@@ -17,8 +17,11 @@ func (t *EthernetContextInformation) Field() tlv.Field {
 
 func (t *EthernetContextInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = EthernetContextInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case MAC_ADDRESSES_DETECTED_TYPE:
 			t.MACAddressesDetected = de.Value

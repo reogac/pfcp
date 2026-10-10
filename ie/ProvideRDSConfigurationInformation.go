@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Provide RDS Configuration Information' data structure */
@@ -19,8 +19,11 @@ func (t *ProvideRDSConfigurationInformation) Field() tlv.Field {
 
 func (t *ProvideRDSConfigurationInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = ProvideRDSConfigurationInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case RDS_CONFIGURATION_INFORMATION_TYPE:
 			t.RDSConfigurationInformation = de.Value

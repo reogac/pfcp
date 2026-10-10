@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Error Indication Report' data structure */
@@ -17,8 +17,11 @@ func (t *ErrorIndicationReport) Field() tlv.Field {
 
 func (t *ErrorIndicationReport) UnmarshalBinary(buf []byte) (err error) {
 	*t = ErrorIndicationReport{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case F_TEID_TYPE:
 			err = de.UnmarshalValue(&t.RemoteFTEID)

@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Created Bridge Info for TSC' data structure */
@@ -23,8 +23,11 @@ func (t *CreatedBridgeInfoforTSC) Field() tlv.Field {
 
 func (t *CreatedBridgeInfoforTSC) UnmarshalBinary(buf []byte) (err error) {
 	*t = CreatedBridgeInfoforTSC{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case DS_TT_PORT_NUMBER_TYPE:
 			t.DSTTPortNumber = de.Value

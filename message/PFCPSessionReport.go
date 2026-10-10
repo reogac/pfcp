@@ -4,7 +4,7 @@ import (
 	"github.com/reogac/pfcp"
 	"github.com/reogac/pfcp/ie"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Session Report Request' data structure */
@@ -68,8 +68,11 @@ func (t *PFCPSessionReportRequest) Field() tlv.Field {
 
 func (t *PFCPSessionReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionReportRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.REPORT_TYPE_TYPE:
 			err = pfcp.UnmarshalUint8(de.Value, &t.ReportType)
@@ -210,8 +213,11 @@ func (t *PFCPSessionReportResponse) Field() tlv.Field {
 
 func (t *PFCPSessionReportResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionReportResponse{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case ie.CAUSE_TYPE:
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)

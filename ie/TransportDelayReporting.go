@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Transport Delay Reporting' data structure */
@@ -21,8 +21,11 @@ func (t *TransportDelayReporting) Field() tlv.Field {
 
 func (t *TransportDelayReporting) UnmarshalBinary(buf []byte) (err error) {
 	*t = TransportDelayReporting{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case REMOTE_GTP_U_PEER_TYPE:
 			t.PrecedingULGTPUPeer = de.Value

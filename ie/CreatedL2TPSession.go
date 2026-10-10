@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Created L2TP Session' data structure */
@@ -27,8 +27,11 @@ func (t *CreatedL2TPSession) Field() tlv.Field {
 
 func (t *CreatedL2TPSession) UnmarshalBinary(buf []byte) (err error) {
 	*t = CreatedL2TPSession{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case DNS_SERVER_ADDRESS_TYPE:
 			t.DNSServerAddress = de.Value

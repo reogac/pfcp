@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Remove PDR' data structure */
@@ -19,8 +19,11 @@ func (t *RemovePDR) Field() tlv.Field {
 
 func (t *RemovePDR) UnmarshalBinary(buf []byte) (err error) {
 	*t = RemovePDR{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case PDR_ID_TYPE:
 			err = pfcp.UnmarshalUint16(de.Value, &t.PDRID)

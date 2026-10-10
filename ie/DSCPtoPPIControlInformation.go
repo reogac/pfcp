@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'DSCP to PPI Control Information' data structure */
@@ -23,8 +23,11 @@ func (t *DSCPtoPPIControlInformation) Field() tlv.Field {
 
 func (t *DSCPtoPPIControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	*t = DSCPtoPPIControlInformation{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case DSCP_TO_PPI_MAPPING_INFORMATION_TYPE:
 			t.DSCPtoPPIMappingInformation = de.Value

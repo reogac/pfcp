@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'GTP-U Path QoS Report PFCP Node Report Request' data structure */
@@ -51,8 +51,11 @@ func (t *GTPUPathQoSReportPFCPNodeReportRequest) Field() tlv.Field {
 
 func (t *GTPUPathQoSReportPFCPNodeReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = GTPUPathQoSReportPFCPNodeReportRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case REMOTE_GTP_U_PEER_TYPE:
 			t.RemoteGTPUPeer = de.Value

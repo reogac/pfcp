@@ -3,7 +3,7 @@ package ie
 import (
 	"github.com/reogac/pfcp"
 
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 func NewUpdateForwardingParameters(dest uint8, in string, oc *OuterHeaderCreation, pid string, flag uint8) (far *UpdateForwardingParameters) {
@@ -77,8 +77,11 @@ func (t *UpdateForwardingParameters) Field() tlv.Field {
 
 func (t *UpdateForwardingParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = UpdateForwardingParameters{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case DESTINATION_INTERFACE_TYPE:
 			var v uint8

@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'ATSSS Control Parameters' data structure */
@@ -27,8 +27,11 @@ func (t *ATSSSControlParameters) Field() tlv.Field {
 
 func (t *ATSSSControlParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = ATSSSControlParameters{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case MPTCP_PARAMETERS_TYPE:
 			var v MPTCPParameters

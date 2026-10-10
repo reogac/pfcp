@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Clock Drift Report' data structure */
@@ -41,8 +41,11 @@ func (t *ClockDriftReport) Field() tlv.Field {
 
 func (t *ClockDriftReport) UnmarshalBinary(buf []byte) (err error) {
 	*t = ClockDriftReport{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case TIME_DOMAIN_NUMBER_TYPE:
 			t.TimeDomainNumber = de.Value

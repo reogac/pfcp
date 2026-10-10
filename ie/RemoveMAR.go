@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Remove MAR' data structure */
@@ -17,8 +17,11 @@ func (t *RemoveMAR) Field() tlv.Field {
 
 func (t *RemoveMAR) UnmarshalBinary(buf []byte) (err error) {
 	*t = RemoveMAR{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case MAR_ID_TYPE:
 			t.MARID = de.Value

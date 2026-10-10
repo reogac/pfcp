@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
+	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'TSC Management Information IE within PFCP Session Report Request' data structure */
@@ -27,8 +27,11 @@ func (t *TSCManagementInformationIEwithinPFCPSessionReportRequest) Field() tlv.F
 
 func (t *TSCManagementInformationIEwithinPFCPSessionReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = TSCManagementInformationIEwithinPFCPSessionReportRequest{}
-	d := tlv.DecodingBuffer(buf)
-	for _, de := range d.Elements() {
+	elements, err := tlv.Elements(buf)
+	if err != nil {
+		return
+	}
+	for _, de := range elements {
 		switch de.Type {
 		case PORT_MANAGEMENT_INFORMATION_CONTAINER_TYPE:
 			t.PortManagementInformationContainer = de.Value
