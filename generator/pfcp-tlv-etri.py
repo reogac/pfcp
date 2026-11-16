@@ -95,6 +95,13 @@ def write_unmarshal_multi_ie(f, ieName, customType, ieSize):
         f.write("t." + ieName + " = append(t." + ieName + ", v)\n")
         f.write("}\n")
 
+# write_first_only guards the decoding of a single IE: an IE repeated where
+# repetition is not specified is handled once, at its first occurrence, and its
+# later ones ignored (TS 29.244 7.6.10). seen is an array on the decoder's
+# stack, so the guard allocates nothing
+def write_first_only(f, idx):
+    f.write("if seen[%d] {\ncontinue\n}\nseen[%d] = true\n" % (idx, idx))
+
 def write_unmarshal_ie(f, ieName, customType, ieSize, presence):
     m, t = get_types(ieSize) 
     if customType:
@@ -983,6 +990,10 @@ for (k, v) in sorted_group_list:
     f.write("func (t *" + groupType + ") UnmarshalBinary(buf []byte) (err error) {\n")
     f.write("*t = " + groupType + "{}\n")
     f.write("elements, err := tlv.Elements(buf)\nif err != nil {\nreturn\n}\n")
+    singles = [ie for ie in group_list[k]["ies"]
+               if not repeats(k, ie) and v_cap(ie["ie_value"]) != "LocalFTEIDforRedundantTransmission"]
+    if singles:
+        f.write("var seen [%d]bool\n" % len(singles))
     f.write("for _, de := range elements {\n")
     f.write("switch de.Type {\n")
     for ie in group_list[k]["ies"]:
@@ -1003,6 +1014,7 @@ for (k, v) in sorted_group_list:
         if repeats(k, ie):
             write_unmarshal_multi_ie(f, ieName, customType, ie["size"])
         else:
+            write_first_only(f, singles.index(ie))
             write_unmarshal_ie(f, ieName, customType, ie["size"], groupPresence(k, ie, customType))
 
     f.write("default:\n")
@@ -1080,6 +1092,9 @@ for (k, v) in sorted_msg_list:
     f.write("func (t *" + msgType + ") UnmarshalBinary(buf []byte) (err error) {\n")
     f.write("*t = " + msgType + "{}\n")
     f.write("elements, err := tlv.Elements(buf)\nif err != nil {\nreturn\n}\n")
+    singles = [ie for ie in msg_list[k]["ies"] if not ie["multi"]]
+    if singles:
+        f.write("var seen [%d]bool\n" % len(singles))
     f.write("for _, de := range elements {\n")
     f.write("switch de.Type {\n")
     for ie in msg_list[k]["ies"]:
@@ -1088,6 +1103,7 @@ for (k, v) in sorted_msg_list:
         if ie["multi"]:
             write_unmarshal_multi_ie(f, ieName, ie["customType"], ie["size"])
         else:
+            write_first_only(f, singles.index(ie))
             write_unmarshal_ie(f, ieName, ie["customType"], ie["size"], ie["presence"])
     f.write("default:\n")
     f.write("err = tlv.ErrCritical\n")
