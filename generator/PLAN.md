@@ -137,6 +137,24 @@ here.
 
 ## Phase D — tests the generator writes
 
+*Done 2026-11-16.*
+- **The generator writes the samples and two tests:**
+  - `internal/samples/samples.go`: a value of every grouped IE and message, every field set and
+    every list two long, from the hand-written leaves of `internal/samples/leaves.go`;
+  - `roundtrip_test.go`: each encoded, decoded and encoded again, the same octets and every
+    field set required. That is 94 grouped IEs and 26 messages, and a decoder made to drop one
+    field fails it;
+  - `shapes_test.go`: 698 fields pinned to the Go type their rows give them.
+- **`message/rules_test.go`, hand-written,** tests C2, C3, C4 and C8 on messages built by hand.
+  It lands with the regenerated library in phase E, since it needs the new types.
+- **Found by the first run:**
+  - **`pfcp.Marshal3Bytes` panicked on every call**, never seen because the library encoded
+    both 3-octet IEs with `MarshalUint32` (C7). It is fixed.
+  - **5GS User Plane Node was an unexported field**, `fivegsUserPlaneNode`: `v_cap` spelled 5GS
+    in lower case. It is `FiveGSUserPlaneNode` now.
+  - **`message/header_test.go`'s two Session Establishment Requests carry no Create PDR**, which
+    is M on N4, so C2 refuses them. Their test data needs the mandatory IEs, in phase E.
+
 - **A conformance table from `cache/`:** for every message and grouped IE, each field's list or
   single, and its presence, against its row. A rule that regresses fails here, not on a peer.
 - **A round trip for every grouped IE and message:** every field set, encoded, decoded and

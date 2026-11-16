@@ -64,6 +64,7 @@ settles (`PLAN.md`, phase B).
 
 | kind | files |
 | --- | --- |
-| generated | `ie/tags.go`; every grouped IE in `ie/`; every message file in `message/` except those below |
+| generated | `ie/tags.go`; every grouped IE in `ie/`; every message file in `message/` except those below; `internal/samples/samples.go`; `ie/` and `message/`'s `roundtrip_test.go` and `shapes_test.go` |
 | hand-written, the leaf codecs | the `ie/*IE.go` of the types `field-ies.py` lists |
+| hand-written, the samples and the rule tests | `internal/samples/leaves.go`, a value of each hand-written leaf; `message/rules_test.go`, the decoding rules of TS 29.244 7.6 and 8.1.2 |
 | hand-written, the rest | `tlv/`; `common.go`; `errors.go`; `ie/{cause,mics,VolumeMeasurement,bitrate,DLBufferingSuggestedPacketCountIE,constructors}.go`; `message/{header,codec,msgtype,json,Association}.go`; every `_test.go` |
