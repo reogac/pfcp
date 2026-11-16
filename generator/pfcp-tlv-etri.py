@@ -627,34 +627,43 @@ else:
                     write_file(f, "group_list[\"" + ie_name + "\"] = { \"index\" : \"" + ie_idx + "\", \"type\" : \"" + ie_type + "\", \"ies\" : ies }\n")
     f.close()
 
-msg_list["PFCP Heartbeat Request"]["table"] = 9
-msg_list["PFCP Heartbeat Response"]["table"] = 10
-msg_list["PFCP PFD Management Request"]["table"] = 11
-msg_list["PFCP PFD Management Response"]["table"] = 14
-msg_list["PFCP Association Setup Request"]["table"] = 15
-msg_list["PFCP Association Setup Response"]["table"] = 20
-msg_list["PFCP Association Update Request"]["table"] = 21
-msg_list["PFCP Association Update Response"]["table"] = 23
-msg_list["PFCP Association Release Request"]["table"] = 24
-msg_list["PFCP Association Release Response"]["table"] = 25
-msg_list["PFCP Version Not Supported Response"]["table"] = 0
-msg_list["PFCP Node Report Request"]["table"] = 26
-msg_list["PFCP Node Report Response"]["table"] = 33
-msg_list["PFCP Session Set Deletion Request"]["table"] = 34
-msg_list["PFCP Session Set Deletion Response"]["table"] = 35
-msg_list["PFCP Session Set Modification Request"]["table"] = 36
-msg_list["PFCP Session Set Modification Response"]["table"] = 38
-msg_list["PFCP Session Establishment Request"]["table"] = 39
-msg_list["PFCP Session Establishment Response"]["table"] = 72
-msg_list["PFCP Session Modification Request"]["table"] = 86
-msg_list["PFCP Session Modification Response"]["table"] = 112
-msg_list["PFCP Session Deletion Request"]["table"] = 117
-msg_list["PFCP Session Deletion Response"]["table"] = 118
-msg_list["PFCP Session Report Request"]["table"] = 121
-msg_list["PFCP Session Report Response"]["table"] = 133
+# every message is parsed from its own table, found by its caption ("Table
+# 7.5.2.1-1: Information Elements in a PFCP Session Establishment Request")
+# rather than by its index in the docx, which a new release moves. Two messages
+# are parsed with no IEs: the PFCP Version Not Supported Response, which has no
+# table, and the PFCP Session Deletion Request, whose table is skipped as it
+# always was
+no_ies = ("PFCP Session Deletion Request", "PFCP Version Not Supported Response")
+for key in msg_list.keys():
+    msg_list[key]["table"] = True
+
+def caption_key(name):
+    name = re.sub(r'^(a|an) ', '', name.strip())
+    return re.sub(r'^PFCP ', '', name).lower()
+
+# message_table is the docx table whose caption names message key; exactly one
+# must, so a release that renames or splits a table stops the parse
+def message_table(document, key):
+    found, caption = [], ""
+    tables = list(document.tables)
+    i = 0
+    for el in document.element.body.iterchildren():
+        tag = el.tag.split('}')[1]
+        if tag == 'p':
+            text = ''.join(x.text or '' for x in el.iter() if x.tag.endswith('}t')).strip()
+            if re.match(r'Table \d', text):
+                caption = text
+        elif tag == 'tbl':
+            m = re.search(r'Information Elements in (.*)$', caption)
+            if m and caption_key(m.group(1)) == caption_key(key):
+                found.append(i)
+            caption = ""
+            i += 1
+    assert len(found) == 1, "%s: %d tables captioned for it" % (key, len(found))
+    return tables[found[0]]
 
 for key in msg_list.keys():
-    if "table" in msg_list[key].keys():
+    if msg_list[key]["table"]:
         d_info("[" + key + "]")
         cachefile = cachedir + "tlv-msg-" + msg_list[key]["type"] + ".py"
         if os.path.isfile(cachefile) and os.access(cachefile, os.R_OK):
@@ -664,7 +673,7 @@ for key in msg_list.keys():
             document = Document(filename)
             f = open(cachefile, 'w')
 
-            table = document.tables[msg_list[key]["table"]]
+            table = None if key in no_ies else message_table(document, key)
 #            if key.find('Association') != -1:
 #                start_i = 1
 #            elif key.find('Heartbeat') != -1:
@@ -675,7 +684,7 @@ for key in msg_list.keys():
 
             ies = []
             write_file(f, "ies = []\n")
-            if key != "PFCP Session Deletion Request" and key != "PFCP Version Not Supported Response":
+            if key not in no_ies:
                 n4idx = n4_column(table, start_i)
                 for row in table.rows[start_i:]:
                     cells = get_cells(row.cells, n4idx)
