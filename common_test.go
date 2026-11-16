@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 // An Extendable IE decodes from its first-defined length up: missing known

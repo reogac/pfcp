@@ -1,9 +1,9 @@
 package message
 
 import (
-	"github.com/reogac/pfcp/ie"
+	"github.com/reogac/pfcp/v2/ie"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 /* 'PFCP Version Not Supported Response' data structure */

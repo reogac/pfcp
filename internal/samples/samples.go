@@ -3,8 +3,8 @@
 package samples
 
 import (
-	"github.com/reogac/pfcp/ie"
-	"github.com/reogac/pfcp/message"
+	"github.com/reogac/pfcp/v2/ie"
+	"github.com/reogac/pfcp/v2/message"
 )
 
 func EthernetPacketFilter() ie.EthernetPacketFilter {

@@ -3,7 +3,7 @@ package ie
 import (
 	"encoding/binary"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 func NewSDFFilter(fd, ttc, spi, fl string, fid uint32) *SDFFilter {

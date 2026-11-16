@@ -268,7 +268,8 @@ def output_header_to_file(f):
     now = datetime.datetime.now()
     f.write("package pfcp\n\n")
 
-modulePath = "github.com/reogac/pfcp"
+# a major version beyond 1 is part of the module path (go.dev/ref/mod#major-version-suffixes)
+modulePath = "github.com/reogac/pfcp/v2"
 
 # write_go_file writes a generated file of package pkg: the body, behind the
 # imports it uses. The module's own packages come first and its tlv package

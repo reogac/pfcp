@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 func NewGBR(ul, dl uint64) *GBR {

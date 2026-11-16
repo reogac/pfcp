@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/reogac/pfcp/ie"
+	"github.com/reogac/pfcp/v2/ie"
 )
 
 // goPfcpMessages are whole messages as github.com/wmnsk/go-pfcp v0.0.24 writes

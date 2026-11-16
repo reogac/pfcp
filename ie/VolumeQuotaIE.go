@@ -3,7 +3,7 @@ package ie
 import (
 	"encoding/binary"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 func NewVolumeQuota(flags uint8, tvol, uvol, dvol uint64) *VolumeQuota {

@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp"
+	"github.com/reogac/pfcp/v2"
 )
 
 func NewMeasurementInformation(f uint8) *MeasurementInformation {

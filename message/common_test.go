@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/reogac/pfcp/ie"
+	"github.com/reogac/pfcp/v2/ie"
 	"net"
 	"testing"
 )

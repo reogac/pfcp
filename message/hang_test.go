@@ -3,7 +3,7 @@ package message
 import (
 	"testing"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 // TestRepeatedBytesFieldsEncodeOnce pins the fields whose encoder was a

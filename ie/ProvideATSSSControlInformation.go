@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 /* 'Provide ATSSS Control Information' data structure */

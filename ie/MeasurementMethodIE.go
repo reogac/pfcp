@@ -1,6 +1,6 @@
 package ie
 
-import "github.com/reogac/pfcp"
+import "github.com/reogac/pfcp/v2"
 
 func NewMeasurementMethod(event, volum, durat uint8) (m MeasurementMethod) {
 	m = MeasurementMethod{

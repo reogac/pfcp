@@ -4,8 +4,8 @@ import (
 	"encoding"
 	"fmt"
 
-	"github.com/reogac/pfcp/ie"
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/ie"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 // Type is a PFCP message type (TS 29.244 §7.3).

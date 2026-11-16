@@ -5,10 +5,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/reogac/pfcp"
-	"github.com/reogac/pfcp/ie"
-	"github.com/reogac/pfcp/message"
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2"
+	"github.com/reogac/pfcp/v2/ie"
+	"github.com/reogac/pfcp/v2/message"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 // The decoding rules of TS 29.244 7.6 and 8.1.2 the generated decoders follow,

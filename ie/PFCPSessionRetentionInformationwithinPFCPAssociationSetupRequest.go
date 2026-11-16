@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 /* 'PFCP Session Retention Information within PFCP Association Setup Request' data structure */

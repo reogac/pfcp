@@ -1,6 +1,6 @@
 package ie
 
-import "github.com/reogac/pfcp/tlv"
+import "github.com/reogac/pfcp/v2/tlv"
 
 // A gate's value as TS 29.244 §8.2.27 defines it: 0 is OPEN and 1 CLOSED.
 const (

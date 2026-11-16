@@ -1,9 +1,9 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp"
+	"github.com/reogac/pfcp/v2"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 /* 'GTP-U Path QoS Report PFCP Node Report Request' data structure */

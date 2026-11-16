@@ -1,6 +1,6 @@
 package message
 
-import "github.com/reogac/pfcp/tlv"
+import "github.com/reogac/pfcp/v2/tlv"
 
 // The codec works at two levels, and the body level stands alone: an SMF that
 // hands its N4 to a proxy over SBI never sees a header, while the proxy and the

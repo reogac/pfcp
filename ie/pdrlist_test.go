@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 // A PDR names as many QERs as it is policed by, and an update as many URRs and

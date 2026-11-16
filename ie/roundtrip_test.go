@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/reogac/pfcp/ie"
-	"github.com/reogac/pfcp/internal/samples"
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/ie"
+	"github.com/reogac/pfcp/v2/internal/samples"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 type codec interface {

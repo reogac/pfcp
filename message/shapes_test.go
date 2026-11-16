@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	_ "github.com/reogac/pfcp/ie"
-	"github.com/reogac/pfcp/message"
+	_ "github.com/reogac/pfcp/v2/ie"
+	"github.com/reogac/pfcp/v2/message"
 )
 
 // shapes is each field's Go type as its row in TS 29.244 makes it: a list

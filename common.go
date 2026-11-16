@@ -3,7 +3,7 @@ package pfcp
 import (
 	"encoding/binary"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 func MarshalUint8(v uint8) []byte {

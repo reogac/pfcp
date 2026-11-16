@@ -1,7 +1,7 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 /* 'TSC Management Information IE within PFCP Session Modification Response' data structure */

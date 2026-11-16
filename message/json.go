@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/json"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 func jsonMarshal(t tlv.Fielder) (buf []byte, err error) {

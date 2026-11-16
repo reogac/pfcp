@@ -5,7 +5,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 const (

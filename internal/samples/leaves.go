@@ -8,7 +8,7 @@ package samples
 import (
 	"net"
 
-	"github.com/reogac/pfcp/ie"
+	"github.com/reogac/pfcp/v2/ie"
 )
 
 func ptr[T any](v T) *T { return &v }

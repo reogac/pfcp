@@ -1,9 +1,9 @@
 package ie
 
 import (
-	"github.com/reogac/pfcp"
+	"github.com/reogac/pfcp/v2"
 
-	"github.com/reogac/pfcp/tlv"
+	"github.com/reogac/pfcp/v2/tlv"
 )
 
 /* 'Query Packet Rate Status IE within PFCP Session Modification Request' data structure */
