@@ -80,12 +80,20 @@ def get_types(ieSize):
         t = "uint32"
     return m, t
 
-def write_unmarshal_multi_ie(f, ieName, customType, ieSize):
+# merge_unknown writes the line that adds what a decoded grouped IE skipped to
+# the list of the IE or message holding it, so that the message's list holds
+# every IE type skipped anywhere in it
+def merge_unknown(f, isGroup, value):
+    if isGroup:
+        f.write("t.Unknown = append(t.Unknown, %s.Unknown...)\n" % value)
+
+def write_unmarshal_multi_ie(f, ieName, customType, ieSize, isGroup=False):
     m, t = get_types(ieSize) 
     if customType:
         f.write("var v %s\n" % customType)
         f.write("if err = de.UnmarshalValue(&v); err == nil {\n")
         f.write("t." + ieName + " = append(t." + ieName + ", v)\n")
+        merge_unknown(f, isGroup, "v")
         f.write("}\n")
     elif t == "[]byte":
         f.write("t." + ieName + " = append(t." + ieName + ", de.Value)\n")
@@ -102,15 +110,18 @@ def write_unmarshal_multi_ie(f, ieName, customType, ieSize):
 def write_first_only(f, idx):
     f.write("if seen[%d] {\ncontinue\n}\nseen[%d] = true\n" % (idx, idx))
 
-def write_unmarshal_ie(f, ieName, customType, ieSize, presence):
+def write_unmarshal_ie(f, ieName, customType, ieSize, presence, isGroup=False):
     m, t = get_types(ieSize) 
     if customType:
         if presence == "M":
-            f.write("err = de.UnmarshalValue(&t.%s)\n" % ieName)
+            f.write("if err = de.UnmarshalValue(&t.%s); err == nil {\n" % ieName)
+            merge_unknown(f, isGroup, "t." + ieName)
+            f.write("}\n")
         else:
             f.write("var v %s\n" % customType)
             f.write("if err = de.UnmarshalValue(&v); err == nil {\n")
             f.write("t." + ieName + " = &v\n")
+            merge_unknown(f, isGroup, "v")
             f.write("}\n")
     elif t == "[]byte":
         f.write("t.%s = de.Value\n" % ieName)
@@ -824,6 +835,14 @@ def field_decl(f, ieName, ieType, ieKey, multi, value):
     else:
         f.write("%s *%s //%s\n" % (ieName, ieType, ieKey))
 
+# unknown_field is the last field of every message and grouped IE: the types of
+# the IEs its decoder skipped, as unknown or not defined for it, its grouped
+# IEs' included. TS 29.244 7.6.9 has the receiver discard such an IE, log an
+# error and process the message, so decoding never fails on one; the caller
+# logs what this holds. Not in the JSON form, which carries what was decoded
+def unknown_field(f):
+    f.write("Unknown []uint32 `json:\"-\"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)\n")
+
 # presence overrides, each a row whose P column cannot be taken as it is.
 # MBS Session N4mb Control Information is M on N4mb alone: its Sxa, Sxb, Sxc
 # and N4 columns are "-", and a value field sent it on every N4 request
@@ -984,6 +1003,7 @@ for (k, v) in sorted_group_list:
         ieType = customType if customType else ie["goType"]
         field_decl(f, v_cap(ie["ie_value"]), ieType, ieKey, repeats(k, ie),
                    groupPresence(k, ie, customType) == "M" or ieType == "[]byte")
+    unknown_field(f)
     f.write("}\n")
     f.write("\n")
 
@@ -1025,20 +1045,20 @@ for (k, v) in sorted_group_list:
             a, b = singles.index(first), singles.index(second)
             f.write("case " + ieTag + ":\n")
             f.write("if !seen[%d] {\nseen[%d] = true\n" % (a, a))
-            write_unmarshal_ie(f, v_cap(first["ie_value"]), customType, first["size"], groupPresence(k, first, customType))
+            write_unmarshal_ie(f, v_cap(first["ie_value"]), customType, first["size"], groupPresence(k, first, customType), ieKey in group_list)
             f.write("} else if !seen[%d] {\nseen[%d] = true\n" % (b, b))
-            write_unmarshal_ie(f, v_cap(second["ie_value"]), customType, second["size"], groupPresence(k, second, customType))
+            write_unmarshal_ie(f, v_cap(second["ie_value"]), customType, second["size"], groupPresence(k, second, customType), ieKey in group_list)
             f.write("} else {\ncontinue\n}\n")
             continue
         f.write("case " + ieTag + ":\n")
         if repeats(k, ie):
-            write_unmarshal_multi_ie(f, ieName, customType, ie["size"])
+            write_unmarshal_multi_ie(f, ieName, customType, ie["size"], ieKey in group_list)
         else:
             write_first_only(f, singles.index(ie))
-            write_unmarshal_ie(f, ieName, customType, ie["size"], groupPresence(k, ie, customType))
+            write_unmarshal_ie(f, ieName, customType, ie["size"], groupPresence(k, ie, customType), ieKey in group_list)
 
     f.write("default:\n")
-    f.write("err = tlv.ErrCritical\n")
+    f.write("t.Unknown = append(t.Unknown, de.Type)\n")
     f.write("}\n")
     f.write("if err != nil {\n")
     f.write("return\n")
@@ -1094,6 +1114,7 @@ for (k, v) in sorted_msg_list:
         ieType = ie["goType"]
         field_decl(f, ieName, ieType, ie["ie_type"], ie["multi"],
                    ie["presence"] == "M" or ieType == "[]byte")
+    unknown_field(f)
     f.write("}\n\n")
 
     #fielder
@@ -1121,12 +1142,12 @@ for (k, v) in sorted_msg_list:
         ieName = v_cap(ie["ie_value"])
         f.write("case " + ie["tag"] + ":\n")
         if ie["multi"]:
-            write_unmarshal_multi_ie(f, ieName, ie["customType"], ie["size"])
+            write_unmarshal_multi_ie(f, ieName, ie["customType"], ie["size"], ie["isGroup"])
         else:
             write_first_only(f, singles.index(ie))
-            write_unmarshal_ie(f, ieName, ie["customType"], ie["size"], ie["presence"])
+            write_unmarshal_ie(f, ieName, ie["customType"], ie["size"], ie["presence"], ie["isGroup"])
     f.write("default:\n")
-    f.write("err = tlv.ErrCritical\n")
+    f.write("t.Unknown = append(t.Unknown, de.Type)\n")
     f.write("}\n")
     f.write("if err != nil {\n")
     f.write("return\n")
