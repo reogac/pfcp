@@ -1,0 +1,4 @@
+# the generator's output, written beside the library until PLAN.md phase B
+generator/tmp/
+# 3GPP's text: obtained and edited as generator/README.md says, never committed
+generator/*.docx
