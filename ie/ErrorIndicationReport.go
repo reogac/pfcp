@@ -10,6 +10,7 @@ import (
 type ErrorIndicationReport struct {
 	RemoteFTEID []FTEID  //F-TEID
 	Unknown     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid     []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *ErrorIndicationReport) Field() tlv.Field {
@@ -27,6 +28,7 @@ func (t *ErrorIndicationReport) UnmarshalBinary(buf []byte) (err error) {
 		return pfcp.Faulty(0, err)
 	}
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case F_TEID_TYPE:
 			var v FTEID
@@ -37,7 +39,12 @@ func (t *ErrorIndicationReport) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if len(t.RemoteFTEID) == 0 {

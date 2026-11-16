@@ -14,6 +14,7 @@ type ClockDriftControlInformation struct {
 	TimeOffsetThreshold            []byte   //Time Offset Threshold
 	CumulativerateRatioThreshold   []byte   //Cumulative rateRatio Threshold
 	Unknown                        []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *ClockDriftControlInformation) Field() tlv.Field {
@@ -42,6 +43,7 @@ func (t *ClockDriftControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [4]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case REQUESTED_CLOCK_DRIFT_INFORMATION_TYPE:
 			if seen[0] {
@@ -73,7 +75,12 @@ func (t *ClockDriftControlInformation) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

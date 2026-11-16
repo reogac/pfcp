@@ -41,7 +41,7 @@ func roundTrip[T any, P interface {
 	rv := reflect.ValueOf(got)
 	for i := 0; i < rv.NumField(); i++ {
 		name2 := rv.Type().Field(i).Name
-		if name2 == "Unknown" {
+		if name2 == "Unknown" || name2 == "Invalid" {
 			if rv.Field(i).Len() != 0 {
 				t.Errorf("%s: skipped %v", name, rv.Field(i).Interface())
 			}

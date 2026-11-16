@@ -23,6 +23,7 @@ type PFCPAssociationUpdateRequest struct {
 	GTPUPathQoSControlInformation  [][]byte                          //GTP-U Path QoS Control Information
 	UEIPAddressUsageInformation    []ie.UEIPAddressUsageInformation  //UE IP Address Usage Information
 	Unknown                        []uint32                          `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32                          `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPAssociationUpdateRequest) Field() tlv.Field {
@@ -75,6 +76,7 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [7]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -84,12 +86,14 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&t.NodeID); err == nil {
 			}
 		case ie.UP_FUNCTION_FEATURES_TYPE:
+			opt = true
 			if seen[1] {
 				continue
 			}
 			seen[1] = true
 			t.UPFunctionFeatures = de.Value
 		case ie.CP_FUNCTION_FEATURES_TYPE:
+			opt = true
 			if seen[2] {
 				continue
 			}
@@ -99,6 +103,7 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 				t.CPFunctionFeatures = &v
 			}
 		case ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE:
+			opt = true
 			t.UserPlaneIPResourceInformation = append(t.UserPlaneIPResourceInformation, de.Value)
 		case ie.PFCP_ASSOCIATION_RELEASE_REQUEST_TYPE:
 			if seen[3] {
@@ -113,6 +118,7 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 			seen[4] = true
 			t.GracefulReleasePeriod = de.Value
 		case ie.PFCPAUREQ_FLAGS_TYPE:
+			opt = true
 			if seen[5] {
 				continue
 			}
@@ -122,8 +128,10 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 				t.PFCPAUReqFlags = &v
 			}
 		case ie.ALTERNATIVE_SMF_IP_ADDRESS_TYPE:
+			opt = true
 			t.AlternativeSMFIPAddress = append(t.AlternativeSMFIPAddress, de.Value)
 		case ie.SMF_SET_ID_TYPE:
+			opt = true
 			if seen[6] {
 				continue
 			}
@@ -134,8 +142,10 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ClockDriftControlInformation = append(t.ClockDriftControlInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UE_IP_ADDRESS_TYPE:
+			opt = true
 			var v ie.UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPaddressPoolInformation = append(t.UEIPaddressPoolInformation, v)
@@ -143,16 +153,23 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 		case ie.GTP_U_PATH_QOS_CONTROL_INFORMATION_TYPE:
 			t.GTPUPathQoSControlInformation = append(t.GTPUPathQoSControlInformation, de.Value)
 		case ie.UE_IP_ADDRESS_USAGE_INFORMATION_TYPE:
+			opt = true
 			var v ie.UEIPAddressUsageInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPAddressUsageInformation = append(t.UEIPAddressUsageInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {
@@ -191,6 +208,7 @@ type PFCPAssociationUpdateResponse struct {
 	UserPlaneIPResourceInformation [][]byte                         //User Plane IP Resource Information
 	UEIPAddressUsageInformation    []ie.UEIPAddressUsageInformation //UE IP Address Usage Information
 	Unknown                        []uint32                         `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32                         `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPAssociationUpdateResponse) Field() tlv.Field {
@@ -220,6 +238,7 @@ func (t *PFCPAssociationUpdateResponse) UnmarshalBinary(buf []byte) (err error) 
 	}
 	var seen [4]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -235,12 +254,14 @@ func (t *PFCPAssociationUpdateResponse) UnmarshalBinary(buf []byte) (err error) 
 			seen[1] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		case ie.UP_FUNCTION_FEATURES_TYPE:
+			opt = true
 			if seen[2] {
 				continue
 			}
 			seen[2] = true
 			t.UPFunctionFeatures = de.Value
 		case ie.CP_FUNCTION_FEATURES_TYPE:
+			opt = true
 			if seen[3] {
 				continue
 			}
@@ -250,18 +271,26 @@ func (t *PFCPAssociationUpdateResponse) UnmarshalBinary(buf []byte) (err error) 
 				t.CPFunctionFeatures = &v
 			}
 		case ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE:
+			opt = true
 			t.UserPlaneIPResourceInformation = append(t.UserPlaneIPResourceInformation, de.Value)
 		case ie.UE_IP_ADDRESS_USAGE_INFORMATION_TYPE:
+			opt = true
 			var v ie.UEIPAddressUsageInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPAddressUsageInformation = append(t.UEIPAddressUsageInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[1] {

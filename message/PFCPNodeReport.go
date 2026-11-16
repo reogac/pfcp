@@ -18,6 +18,7 @@ type PFCPNodeReportRequest struct {
 	GTPUPathQoSReport            []ie.GTPUPathQoSReportPFCPNodeReportRequest //GTP-U Path QoS Report PFCP Node Report Request
 	PeerUPRestartReport          []byte                                      //Peer UP Restart Report
 	Unknown                      []uint32                                    `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                      []uint32                                    `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPNodeReportRequest) Field() tlv.Field {
@@ -53,6 +54,7 @@ func (t *PFCPNodeReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [6]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -82,6 +84,7 @@ func (t *PFCPNodeReportRequest) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UserPlanePathFailureReport = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.USER_PLANE_PATH_RECOVERY_REPORT_TYPE:
 			if seen[4] {
@@ -92,18 +95,21 @@ func (t *PFCPNodeReportRequest) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UserPlanePathRecoveryReport = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CLOCK_DRIFT_REPORT_TYPE:
 			var v ie.ClockDriftReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ClockDriftReport = append(t.ClockDriftReport, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.GTP_U_PATH_QOS_REPORT_PFCP_NODE_REPORT_REQUEST_TYPE:
 			var v ie.GTPUPathQoSReportPFCPNodeReportRequest
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.GTPUPathQoSReport = append(t.GTPUPathQoSReport, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PEER_UP_RESTART_REPORT_TYPE:
 			if seen[5] {
@@ -115,7 +121,12 @@ func (t *PFCPNodeReportRequest) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {
@@ -154,6 +165,7 @@ type PFCPNodeReportResponse struct {
 	Cause       uint8     //Cause
 	OffendingIE *uint16   //Offending IE
 	Unknown     []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid     []uint32  `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPNodeReportResponse) Field() tlv.Field {
@@ -174,6 +186,7 @@ func (t *PFCPNodeReportResponse) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [3]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -201,7 +214,12 @@ func (t *PFCPNodeReportResponse) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[1] {

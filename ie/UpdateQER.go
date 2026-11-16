@@ -21,6 +21,7 @@ type UpdateQER struct {
 	AveragingWindow       *uint32     //Averaging Window
 	QERControlIndications []byte      //QER Control Indications
 	Unknown               []uint32    `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid               []uint32    `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *UpdateQER) Field() tlv.Field {
@@ -70,6 +71,7 @@ func (t *UpdateQER) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [12]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case QER_ID_TYPE:
 			if seen[0] {
@@ -153,6 +155,7 @@ func (t *UpdateQER) UnmarshalBinary(buf []byte) (err error) {
 				t.PagingPolicyIndicator = &v
 			}
 		case AVERAGING_WINDOW_TYPE:
+			opt = true
 			if seen[10] {
 				continue
 			}
@@ -171,7 +174,12 @@ func (t *UpdateQER) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

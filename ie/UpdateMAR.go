@@ -18,6 +18,7 @@ type UpdateMAR struct {
 	Thresholdvalues                            []byte                                      //Thresholds
 	SteeringModeIndicator                      []byte                                      //Steering Mode Indicator
 	Unknown                                    []uint32                                    `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                                    []uint32                                    `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *UpdateMAR) Field() tlv.Field {
@@ -58,6 +59,7 @@ func (t *UpdateMAR) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [9]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case MAR_ID_TYPE:
 			if seen[0] {
@@ -86,6 +88,7 @@ func (t *UpdateMAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateAccessForwardingActionInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case UPDATE_NON__ACCESS_FORWARDING_ACTION_INFORMATION_TYPE:
 			if seen[4] {
@@ -96,6 +99,7 @@ func (t *UpdateMAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateNonAccessForwardingActionInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case _ACCESS_FORWARDING_ACTION_INFORMATION_TYPE:
 			if seen[5] {
@@ -106,6 +110,7 @@ func (t *UpdateMAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.AccessForwardingActionInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case NON__ACCESS_FORWARDING_ACTION_INFORMATION_TYPE:
 			if seen[6] {
@@ -116,6 +121,7 @@ func (t *UpdateMAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.NonAccessForwardingActionInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case THRESHOLDS_TYPE:
 			if seen[7] {
@@ -133,7 +139,12 @@ func (t *UpdateMAR) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

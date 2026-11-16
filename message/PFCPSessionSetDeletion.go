@@ -12,6 +12,7 @@ type PFCPSessionSetDeletionRequest struct {
 	NodeID     ie.NodeID   //Node ID
 	FQCSIDList []ie.FQCSID //FQ-CSID
 	Unknown    []uint32    `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid    []uint32    `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionSetDeletionRequest) Field() tlv.Field {
@@ -31,6 +32,7 @@ func (t *PFCPSessionSetDeletionRequest) UnmarshalBinary(buf []byte) (err error) 
 	}
 	var seen [1]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -48,7 +50,12 @@ func (t *PFCPSessionSetDeletionRequest) UnmarshalBinary(buf []byte) (err error) 
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {
@@ -84,6 +91,7 @@ type PFCPSessionSetDeletionResponse struct {
 	Cause       uint8     //Cause
 	OffendingIE *uint16   //Offending IE
 	Unknown     []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid     []uint32  `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionSetDeletionResponse) Field() tlv.Field {
@@ -104,6 +112,7 @@ func (t *PFCPSessionSetDeletionResponse) UnmarshalBinary(buf []byte) (err error)
 	}
 	var seen [3]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -131,7 +140,12 @@ func (t *PFCPSessionSetDeletionResponse) UnmarshalBinary(buf []byte) (err error)
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[1] {

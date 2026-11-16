@@ -16,6 +16,7 @@ type ClockDriftReport struct {
 	APNDNN                         []byte   //APN/DNN
 	SNSSAI                         []byte   //S-NSSAI
 	Unknown                        []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *ClockDriftReport) Field() tlv.Field {
@@ -50,6 +51,7 @@ func (t *ClockDriftReport) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [7]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case TIME_DOMAIN_NUMBER_TYPE:
 			if seen[0] {
@@ -58,18 +60,21 @@ func (t *ClockDriftReport) UnmarshalBinary(buf []byte) (err error) {
 			seen[0] = true
 			t.TimeDomainNumber = de.Value
 		case TIME_OFFSET_MEASUREMENT_TYPE:
+			opt = true
 			if seen[1] {
 				continue
 			}
 			seen[1] = true
 			t.TimeOffsetMeasurement = de.Value
 		case CUMULATIVE_RATERATIO_MEASUREMENT_TYPE:
+			opt = true
 			if seen[2] {
 				continue
 			}
 			seen[2] = true
 			t.CumulativerateRatioMeasurement = de.Value
 		case TIME_STAMP_TYPE:
+			opt = true
 			if seen[3] {
 				continue
 			}
@@ -97,7 +102,12 @@ func (t *ClockDriftReport) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

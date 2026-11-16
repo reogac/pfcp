@@ -12,6 +12,7 @@ type CreatedL2TPSession struct {
 	NBNSServerAddress [][]byte //NBNS Server Address
 	LNSAddress        []byte   //LNS Address
 	Unknown           []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid           []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *CreatedL2TPSession) Field() tlv.Field {
@@ -36,12 +37,16 @@ func (t *CreatedL2TPSession) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [1]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case DNS_SERVER_ADDRESS_TYPE:
+			opt = true
 			t.DNSServerAddress = append(t.DNSServerAddress, de.Value)
 		case NBNS_SERVER_ADDRESS_TYPE:
+			opt = true
 			t.NBNSServerAddress = append(t.NBNSServerAddress, de.Value)
 		case LNS_ADDRESS_TYPE:
+			opt = true
 			if seen[0] {
 				continue
 			}
@@ -51,7 +56,12 @@ func (t *CreatedL2TPSession) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return

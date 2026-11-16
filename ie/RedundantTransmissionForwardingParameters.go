@@ -11,6 +11,7 @@ type RedundantTransmissionForwardingParameters struct {
 	OuterHeaderCreation                     OuterHeaderCreation //Outer Header Creation
 	NetworkInstanceforRedundantTransmission []byte              //Network Instance
 	Unknown                                 []uint32            `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                                 []uint32            `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *RedundantTransmissionForwardingParameters) Field() tlv.Field {
@@ -30,6 +31,7 @@ func (t *RedundantTransmissionForwardingParameters) UnmarshalBinary(buf []byte) 
 	}
 	var seen [2]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case OUTER_HEADER_CREATION_TYPE:
 			if seen[0] {
@@ -48,7 +50,12 @@ func (t *RedundantTransmissionForwardingParameters) UnmarshalBinary(buf []byte) 
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

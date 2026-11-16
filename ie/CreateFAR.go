@@ -17,6 +17,7 @@ type CreateFAR struct {
 	MBSMulticastParameters                    *MBSMulticastParameters                    //MBS Multicast Parameters
 	AddMBSUnicastParameters                   []AddMBSUnicastParameters                  //Add MBS Unicast Parameters
 	Unknown                                   []uint32                                   `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                                   []uint32                                   `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *CreateFAR) Field() tlv.Field {
@@ -52,6 +53,7 @@ func (t *CreateFAR) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [6]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case FAR_ID_TYPE:
 			if seen[0] {
@@ -75,14 +77,17 @@ func (t *CreateFAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ForwardingParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case DUPLICATING_PARAMETERS_TYPE:
 			var v DuplicatingParameters
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.DuplicatingParameters = append(t.DuplicatingParameters, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case BAR_ID_TYPE:
+			opt = true
 			if seen[3] {
 				continue
 			}
@@ -100,6 +105,7 @@ func (t *CreateFAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RedundantTransmissionForwardingParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case MBS_MULTICAST_PARAMETERS_TYPE:
 			if seen[5] {
@@ -110,18 +116,25 @@ func (t *CreateFAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSMulticastParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ADD_MBS_UNICAST_PARAMETERS_TYPE:
 			var v AddMBSUnicastParameters
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.AddMBSUnicastParameters = append(t.AddMBSUnicastParameters, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

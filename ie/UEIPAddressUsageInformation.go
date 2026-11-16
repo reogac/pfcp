@@ -16,6 +16,7 @@ type UEIPAddressUsageInformation struct {
 	UEIPAddressPoolId              *UEIPAddress //UE IP Address
 	SNSSAI                         []byte       //S-NSSAI
 	Unknown                        []uint32     `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32     `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *UEIPAddressUsageInformation) Field() tlv.Field {
@@ -42,6 +43,7 @@ func (t *UEIPAddressUsageInformation) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [7]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case SEQUENCE_NUMBER_TYPE:
 			if seen[0] {
@@ -74,6 +76,7 @@ func (t *UEIPAddressUsageInformation) UnmarshalBinary(buf []byte) (err error) {
 			seen[4] = true
 			t.NetworkInstance = de.Value
 		case UE_IP_ADDRESS_TYPE:
+			opt = true
 			if seen[5] {
 				continue
 			}
@@ -83,6 +86,7 @@ func (t *UEIPAddressUsageInformation) UnmarshalBinary(buf []byte) (err error) {
 				t.UEIPAddressPoolId = &v
 			}
 		case S_NSSAI_TYPE:
+			opt = true
 			if seen[6] {
 				continue
 			}
@@ -92,7 +96,12 @@ func (t *UEIPAddressUsageInformation) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

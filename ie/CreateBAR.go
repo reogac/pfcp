@@ -13,6 +13,7 @@ type CreateBAR struct {
 	SuggestedBufferingPacketsCount *uint8   //Suggested Buffering Packets Count
 	MTEDTControlInformation        []byte   //MT-EDT Control Information
 	Unknown                        []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *CreateBAR) Field() tlv.Field {
@@ -38,6 +39,7 @@ func (t *CreateBAR) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [4]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case BAR_ID_TYPE:
 			if seen[0] {
@@ -64,6 +66,7 @@ func (t *CreateBAR) UnmarshalBinary(buf []byte) (err error) {
 				t.SuggestedBufferingPacketsCount = &v
 			}
 		case MT_EDT_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[3] {
 				continue
 			}
@@ -73,7 +76,12 @@ func (t *CreateBAR) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

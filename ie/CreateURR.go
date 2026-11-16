@@ -41,6 +41,7 @@ type CreateURR struct {
 	ExemptedSDFFilterforQuotaAction     []SDFFilter             //SDF Filter
 	UserPlaneInactivityTimer            []byte                  //User Plane Inactivity Timer
 	Unknown                             []uint32                `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                             []uint32                `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *CreateURR) Field() tlv.Field {
@@ -146,6 +147,7 @@ func (t *CreateURR) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [27]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case URR_ID_TYPE:
 			if seen[0] {
@@ -254,42 +256,49 @@ func (t *CreateURR) UnmarshalBinary(buf []byte) (err error) {
 				t.QuotaValidityTime = &v
 			}
 		case MONITORING_TIME_TYPE:
+			opt = true
 			if seen[13] {
 				continue
 			}
 			seen[13] = true
 			t.MonitoringTime = de.Value
 		case SUBSEQUENT_VOLUME_THRESHOLD_TYPE:
+			opt = true
 			if seen[14] {
 				continue
 			}
 			seen[14] = true
 			t.SubsequentVolumeThreshold = de.Value
 		case SUBSEQUENT_TIME_THRESHOLD_TYPE:
+			opt = true
 			if seen[15] {
 				continue
 			}
 			seen[15] = true
 			t.SubsequentTimeThreshold = de.Value
 		case SUBSEQUENT_VOLUME_QUOTA_TYPE:
+			opt = true
 			if seen[16] {
 				continue
 			}
 			seen[16] = true
 			t.SubsequentVolumeQuota = de.Value
 		case SUBSEQUENT_TIME_QUOTA_TYPE:
+			opt = true
 			if seen[17] {
 				continue
 			}
 			seen[17] = true
 			t.SubsequentTimeQuota = de.Value
 		case SUBSEQUENT_EVENT_THRESHOLD_TYPE:
+			opt = true
 			if seen[18] {
 				continue
 			}
 			seen[18] = true
 			t.SubsequentEventThreshold = de.Value
 		case SUBSEQUENT_EVENT_QUOTA_TYPE:
+			opt = true
 			if seen[19] {
 				continue
 			}
@@ -336,19 +345,23 @@ func (t *CreateURR) UnmarshalBinary(buf []byte) (err error) {
 			seen[24] = true
 			t.EthernetInactivityTimer = de.Value
 		case ADDITIONAL_MONITORING_TIME_TYPE:
+			opt = true
 			t.AdditionalMonitoringTime = append(t.AdditionalMonitoringTime, de.Value)
 		case NUMBER_OF_REPORTS_TYPE:
+			opt = true
 			if seen[25] {
 				continue
 			}
 			seen[25] = true
 			t.NumberofReports = de.Value
 		case APPLICATION_ID_TYPE:
+			opt = true
 			var v ApplicationID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ExemptedApplicationIDforQuotaAction = append(t.ExemptedApplicationIDforQuotaAction, v)
 			}
 		case SDF_FILTER_TYPE:
+			opt = true
 			var v SDFFilter
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ExemptedSDFFilterforQuotaAction = append(t.ExemptedSDFFilterforQuotaAction, v)
@@ -363,7 +376,12 @@ func (t *CreateURR) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

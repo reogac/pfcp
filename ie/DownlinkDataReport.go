@@ -13,6 +13,7 @@ type DownlinkDataReport struct {
 	DLDataPacketsSize              []byte   //DL Data Packets Size
 	DLDataStatus                   *uint8   //Data Status
 	Unknown                        []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *DownlinkDataReport) Field() tlv.Field {
@@ -40,6 +41,7 @@ func (t *DownlinkDataReport) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [2]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case PDR_ID_TYPE:
 			var v uint16
@@ -49,12 +51,14 @@ func (t *DownlinkDataReport) UnmarshalBinary(buf []byte) (err error) {
 		case DOWNLINK_DATA_SERVICE_INFORMATION_TYPE:
 			t.DownlinkDataServiceInformation = append(t.DownlinkDataServiceInformation, de.Value)
 		case DL_DATA_PACKETS_SIZE_TYPE:
+			opt = true
 			if seen[0] {
 				continue
 			}
 			seen[0] = true
 			t.DLDataPacketsSize = de.Value
 		case DATA_STATUS_TYPE:
+			opt = true
 			if seen[1] {
 				continue
 			}
@@ -67,7 +71,12 @@ func (t *DownlinkDataReport) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if len(t.PDRID) == 0 {

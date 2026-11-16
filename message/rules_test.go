@@ -2,6 +2,7 @@ package message_test
 
 import (
 	"errors"
+	"net"
 	"slices"
 	"testing"
 
@@ -143,5 +144,47 @@ func TestAnIELongerThanItsInputIsAnInvalidLength(t *testing.T) {
 		tlv.TLVFrom(ie.UPDATE_BAR_PFCP_SESSION_REPORT_RESPONSE_TYPE, tlv.Bytes(inner))))
 	if got := length(err); got != ie.BAR_ID_TYPE {
 		t.Errorf("inside a grouped IE: named %d (%v), want the BAR ID", got, err)
+	}
+}
+
+// 7.6.8: an optional IE whose value is faulty is discarded, the message
+// processed as if it were absent and the IE's type recorded in Invalid; an
+// optional grouped IE whose mandatory IE is faulty goes whole. A mandatory or
+// conditional one still refuses the message, as TestAFaultyIEIsNamed has it.
+func TestAFaultyOptionalIEIsDiscarded(t *testing.T) {
+	var rsp message.PFCPSessionReportResponse
+	err := rsp.UnmarshalBinary(body(t, tlv.TLVFrom(ie.CAUSE_TYPE, tlv.Bytes([]byte{1})),
+		tlv.TLVFrom(ie.F_SEID_TYPE, tlv.Bytes([]byte{0x02}))))
+	if err != nil || rsp.Cause != 1 || rsp.CPFSEID != nil || !slices.Equal(rsp.Invalid, []uint32{ie.F_SEID_TYPE}) {
+		t.Errorf("a CP F-SEID of 1 octet: %v, F-SEID %v, discarded %v", err, rsp.CPFSEID, rsp.Invalid)
+	}
+
+	ip := net.IPv4(10, 0, 0, 1).To4()
+	valid, err := message.EncodeBody(&message.PFCPSessionEstablishmentRequest{
+		NodeID:    ie.NewNodeIDv4(ip),
+		CPFSEID:   *ie.NewFSEID(&ip, nil, 1),
+		CreatePDR: []ie.CreatePDR{{PDRID: 1, Precedence: 1, PDI: ie.PDI{SourceInterface: 0}}},
+		CreateFAR: []ie.CreateFAR{{FARID: 1, ApplyAction: *ie.NewApplyAction(ie.APPLY_ACT_FORW)}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	withBar := append(valid, body(t, tlv.TLV(ie.CREATE_BAR_TYPE, tlv.TLVFrom(ie.BAR_ID_TYPE, tlv.Bytes(nil))))...)
+	var req message.PFCPSessionEstablishmentRequest
+	err = req.UnmarshalBinary(withBar)
+	if err != nil || req.CreateBAR != nil || len(req.CreatePDR) != 1 || !slices.Equal(req.Invalid, []uint32{ie.CREATE_BAR_TYPE}) {
+		t.Errorf("a Create BAR with an empty BAR ID: %v, Create BAR %v, discarded %v", err, req.CreateBAR, req.Invalid)
+	}
+
+	//inside a grouped IE, the discarded IE reaches the message's list: Create
+	//QER's Averaging Window is optional, and four octets
+	withWindow := append(valid, body(t, tlv.TLV(ie.CREATE_QER_TYPE,
+		tlv.TLVFrom(ie.QER_ID_TYPE, tlv.Bytes([]byte{0, 0, 0, 1})),
+		tlv.TLVFrom(ie.GATE_STATUS_TYPE, tlv.Bytes([]byte{0})),
+		tlv.TLVFrom(ie.AVERAGING_WINDOW_TYPE, tlv.Bytes([]byte{1}))))...)
+	req = message.PFCPSessionEstablishmentRequest{}
+	err = req.UnmarshalBinary(withWindow)
+	if err != nil || len(req.CreateQER) != 1 || req.CreateQER[0].AveragingWindow != nil || !slices.Equal(req.Invalid, []uint32{ie.AVERAGING_WINDOW_TYPE}) {
+		t.Errorf("an Averaging Window of 1 octet in a Create QER: %v, discarded %v", err, req.Invalid)
 	}
 }

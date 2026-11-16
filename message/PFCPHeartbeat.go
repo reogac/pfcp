@@ -12,6 +12,7 @@ type PFCPHeartbeatRequest struct {
 	RecoveryTimeStamp uint32   //Recovery Time Stamp
 	SourceIPAddress   []byte   //Source IP Address
 	Unknown           []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid           []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPHeartbeatRequest) Field() tlv.Field {
@@ -31,6 +32,7 @@ func (t *PFCPHeartbeatRequest) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [2]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.RECOVERY_TIME_STAMP_TYPE:
 			if seen[0] {
@@ -39,6 +41,7 @@ func (t *PFCPHeartbeatRequest) UnmarshalBinary(buf []byte) (err error) {
 			seen[0] = true
 			err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &t.RecoveryTimeStamp)
 		case ie.SOURCE_IP_ADDRESS_TYPE:
+			opt = true
 			if seen[1] {
 				continue
 			}
@@ -48,7 +51,12 @@ func (t *PFCPHeartbeatRequest) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return
@@ -79,6 +87,7 @@ func (t *PFCPHeartbeatRequest) UnmarshalJSON(buf []byte) (err error) {
 type PFCPHeartbeatResponse struct {
 	RecoveryTimeStamp uint32   //Recovery Time Stamp
 	Unknown           []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid           []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPHeartbeatResponse) Field() tlv.Field {
@@ -95,6 +104,7 @@ func (t *PFCPHeartbeatResponse) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [1]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.RECOVERY_TIME_STAMP_TYPE:
 			if seen[0] {
@@ -106,7 +116,12 @@ func (t *PFCPHeartbeatResponse) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

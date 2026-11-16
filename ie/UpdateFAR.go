@@ -17,6 +17,7 @@ type UpdateFAR struct {
 	AddMBSUnicastParameters                   []AddMBSUnicastParameters                  //Add MBS Unicast Parameters
 	RemoveMBSUnicastParameters                [][]byte                                   //Remove MBS Unicast Parameters
 	Unknown                                   []uint32                                   `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                                   []uint32                                   `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *UpdateFAR) Field() tlv.Field {
@@ -54,6 +55,7 @@ func (t *UpdateFAR) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [5]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case FAR_ID_TYPE:
 			if seen[0] {
@@ -79,12 +81,14 @@ func (t *UpdateFAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateForwardingparameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case UPDATE_DUPLICATING_PARAMETERS_TYPE:
 			var v UpdateDuplicatingParameters
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateDuplicatingParameters = append(t.UpdateDuplicatingParameters, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case REDUNDANT_TRANSMISSION_FORWARDING_PARAMETERS_TYPE:
 			if seen[3] {
@@ -95,6 +99,7 @@ func (t *UpdateFAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RedundantTransmissionForwardingParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case BAR_ID_TYPE:
 			if seen[4] {
@@ -110,6 +115,7 @@ func (t *UpdateFAR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.AddMBSUnicastParameters = append(t.AddMBSUnicastParameters, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case REMOVE_MBS_UNICAST_PARAMETERS_TYPE:
 			t.RemoveMBSUnicastParameters = append(t.RemoveMBSUnicastParameters, de.Value)
@@ -117,7 +123,12 @@ func (t *UpdateFAR) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

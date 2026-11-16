@@ -39,6 +39,7 @@ type PFCPSessionEstablishmentRequest struct {
 	DSCPtoPPIControlInformation        []ie.DSCPtoPPIControlInformation       //DSCP to PPI Control Information
 	FQCSIDList                         []ie.FQCSID                            //FQ-CSID
 	Unknown                            []uint32                               `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                            []uint32                               `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionEstablishmentRequest) Field() tlv.Field {
@@ -137,6 +138,7 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 	}
 	var seen [18]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -157,26 +159,31 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatePDR = append(t.CreatePDR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_FAR_TYPE:
 			var v ie.CreateFAR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateFAR = append(t.CreateFAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_URR_TYPE:
 			var v ie.CreateURR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateURR = append(t.CreateURR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_QER_TYPE:
 			var v ie.CreateQER
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateQER = append(t.CreateQER, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_BAR_TYPE:
+			opt = true
 			if seen[2] {
 				continue
 			}
@@ -185,12 +192,14 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateBAR = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_TRAFFIC_ENDPOINT_TYPE:
 			var v ie.CreateTrafficEndpoint
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateTrafficEndpoint = append(t.CreateTrafficEndpoint, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PDN_TYPE_TYPE:
 			if seen[3] {
@@ -202,24 +211,28 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 				t.PDNType = &v
 			}
 		case ie.USER_PLANE_INACTIVITY_TIMER_TYPE:
+			opt = true
 			if seen[4] {
 				continue
 			}
 			seen[4] = true
 			t.UserPlaneInactivityTimer = de.Value
 		case ie.USER_ID_TYPE:
+			opt = true
 			if seen[5] {
 				continue
 			}
 			seen[5] = true
 			t.UserID = de.Value
 		case ie.TRACE_INFORMATION_TYPE:
+			opt = true
 			if seen[6] {
 				continue
 			}
 			seen[6] = true
 			t.TraceInformation = de.Value
 		case ie.APN_DNN_TYPE:
+			opt = true
 			if seen[7] {
 				continue
 			}
@@ -230,6 +243,7 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateMAR = append(t.CreateMAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PFCPSEREQ_FLAGS_TYPE:
 			if seen[8] {
@@ -247,10 +261,12 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			seen[9] = true
 			t.CreateBridgeInfoforTSC = de.Value
 		case ie.CREATE_SRR_TYPE:
+			opt = true
 			var v ie.CreateSRR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateSRR = append(t.CreateSRR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PROVIDE_ATSSS_CONTROL_INFORMATION_TYPE:
 			if seen[10] {
@@ -261,8 +277,10 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ProvideATSSSControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.RECOVERY_TIME_STAMP_TYPE:
+			opt = true
 			if seen[11] {
 				continue
 			}
@@ -272,12 +290,14 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 				t.RecoveryTimeStamp = &v
 			}
 		case ie.S_NSSAI_TYPE:
+			opt = true
 			if seen[12] {
 				continue
 			}
 			seen[12] = true
 			t.SNSSAI = de.Value
 		case ie.PROVIDE_RDS_CONFIGURATION_INFORMATION_TYPE:
+			opt = true
 			if seen[13] {
 				continue
 			}
@@ -286,8 +306,10 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ProvideRDSconfigurationinformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.RAT_TYPE_TYPE:
+			opt = true
 			if seen[14] {
 				continue
 			}
@@ -298,6 +320,7 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.L2TPTunnelInformation = append(t.L2TPTunnelInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.L2TP_SESSION_INFORMATION_TYPE:
 			if seen[15] {
@@ -308,14 +331,17 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.L2TPSessionInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.GROUP_ID_TYPE:
+			opt = true
 			if seen[16] {
 				continue
 			}
 			seen[16] = true
 			t.GroupId = de.Value
 		case ie.MBS_SESSION_N4MB_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[17] {
 				continue
 			}
@@ -324,18 +350,22 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSSessionN4mbControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.MBS_SESSION_N4_CONTROL_INFORMATION_TYPE:
 			var v ie.MBSSessionN4ControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSSessionN4ControlInformation = append(t.MBSSessionN4ControlInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.DSCP_TO_PPI_CONTROL_INFORMATION_TYPE:
+			opt = true
 			var v ie.DSCPtoPPIControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.DSCPtoPPIControlInformation = append(t.DSCPtoPPIControlInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.FQ_CSID_TYPE:
 			var v ie.FQCSID
@@ -346,7 +376,12 @@ func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {
@@ -405,6 +440,7 @@ type PFCPSessionEstablishmentResponse struct {
 	MBSSessionN4mbInformation   *ie.MBSSessionN4mbInformation  //MBS Session N4mb Information
 	MBSSessionN4Information     []ie.MBSSessionN4Information   //MBS Session N4 Information
 	Unknown                     []uint32                       `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                     []uint32                       `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionEstablishmentResponse) Field() tlv.Field {
@@ -467,6 +503,7 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 	}
 	var seen [13]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -504,8 +541,10 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatedPDR = append(t.CreatedPDR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.LOAD_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[4] {
 				continue
 			}
@@ -514,8 +553,10 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.LoadControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.OVERLOAD_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[5] {
 				continue
 			}
@@ -524,6 +565,7 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.OverloadControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.FQ_CSID_TYPE:
 			if seen[6] {
@@ -545,6 +587,7 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatedTrafficEndpoint = append(t.CreatedTrafficEndpoint, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATED_BRIDGE_INFO_FOR_TSC_TYPE:
 			if seen[8] {
@@ -555,6 +598,7 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatedBridgeInfoforTSC = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.ATSSS_CONTROL_PARAMETERS_TYPE:
 			if seen[9] {
@@ -565,8 +609,10 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ATSSSControlParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.RDS_CONFIGURATION_INFORMATION_TYPE:
+			opt = true
 			if seen[10] {
 				continue
 			}
@@ -577,8 +623,10 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PartialFailureInformation = append(t.PartialFailureInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATED_L2TP_SESSION_TYPE:
+			opt = true
 			if seen[11] {
 				continue
 			}
@@ -587,6 +635,7 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatedL2TPSession = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.MBS_SESSION_N4MB_INFORMATION_TYPE:
 			if seen[12] {
@@ -597,18 +646,25 @@ func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err erro
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSSessionN4mbInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.MBS_SESSION_N4_INFORMATION_TYPE:
 			var v ie.MBSSessionN4Information
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSSessionN4Information = append(t.MBSSessionN4Information, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[1] {

@@ -26,6 +26,7 @@ type CreatePDR struct {
 	TransportDelayReporting                         *TransportDelayReporting                                         //Transport Delay Reporting
 	RATType                                         []byte                                                           //RAT Type
 	Unknown                                         []uint32                                                         `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                                         []uint32                                                         `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *CreatePDR) Field() tlv.Field {
@@ -86,6 +87,7 @@ func (t *CreatePDR) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [12]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case PDR_ID_TYPE:
 			if seen[0] {
@@ -106,6 +108,7 @@ func (t *CreatePDR) UnmarshalBinary(buf []byte) (err error) {
 			seen[2] = true
 			if err = de.UnmarshalValue(&t.PDI); err == nil {
 				t.Unknown = append(t.Unknown, t.PDI.Unknown...)
+				t.Invalid = append(t.Invalid, t.PDI.Invalid...)
 			}
 		case OUTER_HEADER_REMOVAL_TYPE:
 			if seen[3] {
@@ -138,12 +141,14 @@ func (t *CreatePDR) UnmarshalBinary(buf []byte) (err error) {
 		case ACTIVATE_PREDEFINED_RULES_TYPE:
 			t.ActivatePredefinedRules = append(t.ActivatePredefinedRules, de.Value)
 		case ACTIVATION_TIME_TYPE:
+			opt = true
 			if seen[5] {
 				continue
 			}
 			seen[5] = true
 			t.ActivationTime = de.Value
 		case DEACTIVATION_TIME_TYPE:
+			opt = true
 			if seen[6] {
 				continue
 			}
@@ -162,12 +167,15 @@ func (t *CreatePDR) UnmarshalBinary(buf []byte) (err error) {
 			seen[8] = true
 			t.PacketReplicationandDetectionCarryOnInformation = de.Value
 		case IP_MULTICAST_ADDRESSING_INFO_WITHIN_PFCP_SESSION_ESTABLISHMENT_REQUEST_TYPE:
+			opt = true
 			var v IPMulticastAddressingInfowithinPFCPSessionEstablishmentRequest
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.IPMulticastAddressingInfo = append(t.IPMulticastAddressingInfo, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case UE_IP_ADDRESS_TYPE:
+			opt = true
 			var v UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPaddressPoolIdentity = append(t.UEIPaddressPoolIdentity, v)
@@ -187,8 +195,10 @@ func (t *CreatePDR) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.TransportDelayReporting = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case RAT_TYPE_TYPE:
+			opt = true
 			if seen[11] {
 				continue
 			}
@@ -198,7 +208,12 @@ func (t *CreatePDR) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

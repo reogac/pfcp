@@ -28,6 +28,7 @@ type UsageReportSessionReportRequest struct {
 	LeaveIPMuticastInformation      []LeaveIPMulticastInformationIEwithinUsageReport //Leave IP Multicast Information IE within Usage Report
 	PredefinedRulesName             [][]byte                                         //Predefined Rules Name
 	Unknown                         []uint32                                         `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                         []uint32                                         `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *UsageReportSessionReportRequest) Field() tlv.Field {
@@ -94,6 +95,7 @@ func (t *UsageReportSessionReportRequest) UnmarshalBinary(buf []byte) (err error
 	}
 	var seen [15]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case URR_ID_TYPE:
 			if seen[0] {
@@ -155,6 +157,7 @@ func (t *UsageReportSessionReportRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ApplicationDetectionInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case UE_IP_ADDRESS_TYPE:
 			if seen[8] {
@@ -212,26 +215,35 @@ func (t *UsageReportSessionReportRequest) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.EthernetTrafficInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case JOIN_IP_MULTICAST_INFORMATION_IE_WITHIN_USAGE_REPORT_TYPE:
 			var v JoinIPMulticastInformationIEwithinUsageReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.JoinIPMuticastInformation = append(t.JoinIPMuticastInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case LEAVE_IP_MULTICAST_INFORMATION_IE_WITHIN_USAGE_REPORT_TYPE:
 			var v LeaveIPMulticastInformationIEwithinUsageReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.LeaveIPMuticastInformation = append(t.LeaveIPMuticastInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case PREDEFINED_RULES_NAME_TYPE:
+			opt = true
 			t.PredefinedRulesName = append(t.PredefinedRulesName, de.Value)
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

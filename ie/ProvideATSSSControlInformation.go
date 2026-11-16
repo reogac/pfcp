@@ -12,6 +12,7 @@ type ProvideATSSSControlInformation struct {
 	ATSSSLLControlInformation []byte   //ATSSS-LL Control Information
 	PMFControlInformation     []byte   //PMF Control Information
 	Unknown                   []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                   []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *ProvideATSSSControlInformation) Field() tlv.Field {
@@ -36,6 +37,7 @@ func (t *ProvideATSSSControlInformation) UnmarshalBinary(buf []byte) (err error)
 	}
 	var seen [3]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case MPTCP_CONTROL_INFORMATION_TYPE:
 			if seen[0] {
@@ -59,7 +61,12 @@ func (t *ProvideATSSSControlInformation) UnmarshalBinary(buf []byte) (err error)
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return

@@ -11,6 +11,7 @@ import (
 type PFCPAssociationReleaseRequest struct {
 	NodeID  ie.NodeID //Node ID
 	Unknown []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid []uint32  `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPAssociationReleaseRequest) Field() tlv.Field {
@@ -27,6 +28,7 @@ func (t *PFCPAssociationReleaseRequest) UnmarshalBinary(buf []byte) (err error) 
 	}
 	var seen [1]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -39,7 +41,12 @@ func (t *PFCPAssociationReleaseRequest) UnmarshalBinary(buf []byte) (err error) 
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {
@@ -74,6 +81,7 @@ type PFCPAssociationReleaseResponse struct {
 	NodeID  ie.NodeID //Node ID
 	Cause   uint8     //Cause
 	Unknown []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid []uint32  `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPAssociationReleaseResponse) Field() tlv.Field {
@@ -91,6 +99,7 @@ func (t *PFCPAssociationReleaseResponse) UnmarshalBinary(buf []byte) (err error)
 	}
 	var seen [2]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -109,7 +118,12 @@ func (t *PFCPAssociationReleaseResponse) UnmarshalBinary(buf []byte) (err error)
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[1] {

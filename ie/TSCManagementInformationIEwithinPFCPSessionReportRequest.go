@@ -12,6 +12,7 @@ type TSCManagementInformationIEwithinPFCPSessionReportRequest struct {
 	UserPlaneNodeManagementInformationContainer []byte   //Bridge Management Information Container
 	NWTTPortNumber                              []byte   //NW-TT Port Number
 	Unknown                                     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                                     []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *TSCManagementInformationIEwithinPFCPSessionReportRequest) Field() tlv.Field {
@@ -36,14 +37,17 @@ func (t *TSCManagementInformationIEwithinPFCPSessionReportRequest) UnmarshalBina
 	}
 	var seen [3]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case PORT_MANAGEMENT_INFORMATION_CONTAINER_TYPE:
+			opt = true
 			if seen[0] {
 				continue
 			}
 			seen[0] = true
 			t.PortManagementInformationContainer = de.Value
 		case BRIDGE_MANAGEMENT_INFORMATION_CONTAINER_TYPE:
+			opt = true
 			if seen[1] {
 				continue
 			}
@@ -59,7 +63,12 @@ func (t *TSCManagementInformationIEwithinPFCPSessionReportRequest) UnmarshalBina
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return

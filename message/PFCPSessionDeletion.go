@@ -10,6 +10,7 @@ import (
 /* 'PFCP Session Deletion Request' data structure */
 type PFCPSessionDeletionRequest struct {
 	Unknown []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionDeletionRequest) Field() tlv.Field {
@@ -24,12 +25,18 @@ func (t *PFCPSessionDeletionRequest) UnmarshalBinary(buf []byte) (err error) {
 		return pfcp.Faulty(0, err)
 	}
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return
@@ -69,6 +76,7 @@ type PFCPSessionDeletionResponse struct {
 	MBSSessionN4Information           []ie.MBSSessionN4Information            //MBS Session N4 Information
 	PFCPSDRspFlags                    []byte                                  //PFCPSDRsp-Flags
 	Unknown                           []uint32                                `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                           []uint32                                `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionDeletionResponse) Field() tlv.Field {
@@ -112,6 +120,7 @@ func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [7]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.CAUSE_TYPE:
 			if seen[0] {
@@ -129,6 +138,7 @@ func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 				t.OffendingIE = &v
 			}
 		case ie.LOAD_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[2] {
 				continue
 			}
@@ -137,8 +147,10 @@ func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.LoadControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.OVERLOAD_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[3] {
 				continue
 			}
@@ -147,12 +159,14 @@ func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.OverloadControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.USAGE_REPORT_SESSION_DELETION_RESPONSE_TYPE:
 			var v ie.UsageReportSessionDeletionResponse
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UsageReport = append(t.UsageReport, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.ADDITIONAL_USAGE_REPORTS_INFORMATION_TYPE:
 			if seen[4] {
@@ -169,18 +183,21 @@ func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PacketRateStatusReport = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.SESSION_REPORT_TYPE:
 			var v ie.SessionReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.SessionReport = append(t.SessionReport, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.MBS_SESSION_N4_INFORMATION_TYPE:
 			var v ie.MBSSessionN4Information
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSSessionN4Information = append(t.MBSSessionN4Information, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PFCPSDRSP_FLAGS_TYPE:
 			if seen[6] {
@@ -192,7 +209,12 @@ func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

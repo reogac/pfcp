@@ -12,6 +12,7 @@ type ATSSSControlParameters struct {
 	ATSSSLLParameters *ATSSSLLParameters //ATSSS-LL Parameters
 	PMFParameters     []PMFParameters    //PMF Parameters
 	Unknown           []uint32           `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid           []uint32           `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *ATSSSControlParameters) Field() tlv.Field {
@@ -36,6 +37,7 @@ func (t *ATSSSControlParameters) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [2]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case MPTCP_PARAMETERS_TYPE:
 			if seen[0] {
@@ -46,6 +48,7 @@ func (t *ATSSSControlParameters) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MPTCPParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ATSSS_LL_PARAMETERS_TYPE:
 			if seen[1] {
@@ -56,18 +59,25 @@ func (t *ATSSSControlParameters) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ATSSSLLParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case PMF_PARAMETERS_TYPE:
 			var v PMFParameters
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PMFParameters = append(t.PMFParameters, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return

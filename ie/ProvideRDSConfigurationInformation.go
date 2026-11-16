@@ -10,6 +10,7 @@ import (
 type ProvideRDSConfigurationInformation struct {
 	RDSConfigurationInformation []byte   //RDS Configuration Information
 	Unknown                     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                     []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *ProvideRDSConfigurationInformation) Field() tlv.Field {
@@ -28,8 +29,10 @@ func (t *ProvideRDSConfigurationInformation) UnmarshalBinary(buf []byte) (err er
 	}
 	var seen [1]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case RDS_CONFIGURATION_INFORMATION_TYPE:
+			opt = true
 			if seen[0] {
 				continue
 			}
@@ -39,7 +42,12 @@ func (t *ProvideRDSConfigurationInformation) UnmarshalBinary(buf []byte) (err er
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return

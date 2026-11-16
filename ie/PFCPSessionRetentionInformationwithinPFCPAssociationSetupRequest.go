@@ -10,6 +10,7 @@ import (
 type PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest struct {
 	CPPFCPEntityIPAddress [][]byte //CP PFCP Entity IP Address
 	Unknown               []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid               []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) Field() tlv.Field {
@@ -27,14 +28,21 @@ func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) Unmar
 		return pfcp.Faulty(0, err)
 	}
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case CP_PFCP_ENTITY_IP_ADDRESS_TYPE:
+			opt = true
 			t.CPPFCPEntityIPAddress = append(t.CPPFCPEntityIPAddress, de.Value)
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return

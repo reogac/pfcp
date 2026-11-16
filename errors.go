@@ -71,3 +71,12 @@ func Faulty(t uint32, err error) error {
 	}
 	return &InvalidIE{Type: t, Err: err}
 }
+
+// Discardable reports whether err, as Faulty returned it, is an IE whose value
+// is faulty: one an optional row's IE is discarded for (TS 29.244 7.6.8), the
+// message processed as if it were absent. A Length past its input (7.6.7) and
+// a missing mandatory IE (7.6.6), inside an optional IE as anywhere, are not.
+func Discardable(err error) bool {
+	var invalid *InvalidIE
+	return errors.As(err, &invalid)
+}

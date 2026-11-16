@@ -23,6 +23,7 @@ type PFCPAssociationSetupRequest struct {
 	UPFInstanceID                   []byte                                                               //NF Instance ID
 	PFCPASReqFlags                  []byte                                                               //PFCPASReq-Flags
 	Unknown                         []uint32                                                             `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                         []uint32                                                             `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPAssociationSetupRequest) Field() tlv.Field {
@@ -73,6 +74,7 @@ func (t *PFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [8]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -103,8 +105,10 @@ func (t *PFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 				t.CPFunctionFeatures = &v
 			}
 		case ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE:
+			opt = true
 			t.UserPlaneIPResourceInformation = append(t.UserPlaneIPResourceInformation, de.Value)
 		case ie.ALTERNATIVE_SMF_IP_ADDRESS_TYPE:
+			opt = true
 			t.AlternativeSMFIPAddress = append(t.AlternativeSMFIPAddress, de.Value)
 		case ie.SMF_SET_ID_TYPE:
 			if seen[4] {
@@ -113,6 +117,7 @@ func (t *PFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 			seen[4] = true
 			t.SMFSetID = de.Value
 		case ie.PFCP_SESSION_RETENTION_INFORMATION_WITHIN_PFCP_ASSOCIATION_SETUP_REQUEST_TYPE:
+			opt = true
 			if seen[5] {
 				continue
 			}
@@ -121,8 +126,10 @@ func (t *PFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PFCPSessionRetentionInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UE_IP_ADDRESS_TYPE:
+			opt = true
 			var v ie.UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPaddressPoolInformation = append(t.UEIPaddressPoolInformation, v)
@@ -130,18 +137,22 @@ func (t *PFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 		case ie.GTP_U_PATH_QOS_CONTROL_INFORMATION_TYPE:
 			t.GTPUPathQoSControlInformation = append(t.GTPUPathQoSControlInformation, de.Value)
 		case ie.CLOCK_DRIFT_CONTROL_INFORMATION_TYPE:
+			opt = true
 			var v ie.ClockDriftControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ClockDriftControlInformation = append(t.ClockDriftControlInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.NF_INSTANCE_ID_TYPE:
+			opt = true
 			if seen[6] {
 				continue
 			}
 			seen[6] = true
 			t.UPFInstanceID = de.Value
 		case ie.PFCPASREQ_FLAGS_TYPE:
+			opt = true
 			if seen[7] {
 				continue
 			}
@@ -151,7 +162,12 @@ func (t *PFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {
@@ -200,6 +216,7 @@ type PFCPAssociationSetupResponse struct {
 	GTPUPathQoSControlInformation  [][]byte                          //GTP-U Path QoS Control Information
 	UPFInstanceID                  []byte                            //NF Instance ID
 	Unknown                        []uint32                          `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32                          `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPAssociationSetupResponse) Field() tlv.Field {
@@ -248,6 +265,7 @@ func (t *PFCPAssociationSetupResponse) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [8]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
 			if seen[0] {
@@ -284,8 +302,10 @@ func (t *PFCPAssociationSetupResponse) UnmarshalBinary(buf []byte) (err error) {
 				t.CPFunctionFeatures = &v
 			}
 		case ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE:
+			opt = true
 			t.UserPlaneIPResourceInformation = append(t.UserPlaneIPResourceInformation, de.Value)
 		case ie.ALTERNATIVE_SMF_IP_ADDRESS_TYPE:
+			opt = true
 			t.AlternativeSMFIPAddress = append(t.AlternativeSMFIPAddress, de.Value)
 		case ie.SMF_SET_ID_TYPE:
 			if seen[5] {
@@ -294,6 +314,7 @@ func (t *PFCPAssociationSetupResponse) UnmarshalBinary(buf []byte) (err error) {
 			seen[5] = true
 			t.SMFSetID = de.Value
 		case ie.PFCPASRSP_FLAGS_TYPE:
+			opt = true
 			if seen[6] {
 				continue
 			}
@@ -304,8 +325,10 @@ func (t *PFCPAssociationSetupResponse) UnmarshalBinary(buf []byte) (err error) {
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ClockDriftControlInformation = append(t.ClockDriftControlInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UE_IP_ADDRESS_TYPE:
+			opt = true
 			var v ie.UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPaddressPoolInformation = append(t.UEIPaddressPoolInformation, v)
@@ -313,6 +336,7 @@ func (t *PFCPAssociationSetupResponse) UnmarshalBinary(buf []byte) (err error) {
 		case ie.GTP_U_PATH_QOS_CONTROL_INFORMATION_TYPE:
 			t.GTPUPathQoSControlInformation = append(t.GTPUPathQoSControlInformation, de.Value)
 		case ie.NF_INSTANCE_ID_TYPE:
+			opt = true
 			if seen[7] {
 				continue
 			}
@@ -322,7 +346,12 @@ func (t *PFCPAssociationSetupResponse) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[1] {

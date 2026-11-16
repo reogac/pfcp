@@ -11,6 +11,7 @@ type PMFParameters struct {
 	PMFAddressInformation []byte   //PMF Address Information
 	QoSflowidentifier     *uint8   //QFI
 	Unknown               []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid               []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PMFParameters) Field() tlv.Field {
@@ -30,6 +31,7 @@ func (t *PMFParameters) UnmarshalBinary(buf []byte) (err error) {
 	}
 	var seen [2]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case PMF_ADDRESS_INFORMATION_TYPE:
 			if seen[0] {
@@ -38,6 +40,7 @@ func (t *PMFParameters) UnmarshalBinary(buf []byte) (err error) {
 			seen[0] = true
 			t.PMFAddressInformation = de.Value
 		case QFI_TYPE:
+			opt = true
 			if seen[1] {
 				continue
 			}
@@ -50,7 +53,12 @@ func (t *PMFParameters) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

@@ -14,6 +14,7 @@ type AccessForwardingActionInformation struct {
 	URRID    []uint32 //URR ID
 	RATType  []byte   //RAT Type
 	Unknown  []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid  []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *AccessForwardingActionInformation) Field() tlv.Field {
@@ -42,6 +43,7 @@ func (t *AccessForwardingActionInformation) UnmarshalBinary(buf []byte) (err err
 	}
 	var seen [4]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case FAR_ID_TYPE:
 			if seen[0] {
@@ -67,6 +69,7 @@ func (t *AccessForwardingActionInformation) UnmarshalBinary(buf []byte) (err err
 				t.URRID = append(t.URRID, v)
 			}
 		case RAT_TYPE_TYPE:
+			opt = true
 			if seen[3] {
 				continue
 			}
@@ -76,7 +79,12 @@ func (t *AccessForwardingActionInformation) UnmarshalBinary(buf []byte) (err err
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {

@@ -10,6 +10,7 @@ import (
 type UserPlanePathFailureReport struct {
 	RemoteGTPUPeer [][]byte //Remote GTP-U Peer
 	Unknown        []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid        []uint32 `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *UserPlanePathFailureReport) Field() tlv.Field {
@@ -27,6 +28,7 @@ func (t *UserPlanePathFailureReport) UnmarshalBinary(buf []byte) (err error) {
 		return pfcp.Faulty(0, err)
 	}
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case REMOTE_GTP_U_PEER_TYPE:
 			t.RemoteGTPUPeer = append(t.RemoteGTPUPeer, de.Value)
@@ -34,7 +36,12 @@ func (t *UserPlanePathFailureReport) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if len(t.RemoteGTPUPeer) == 0 {

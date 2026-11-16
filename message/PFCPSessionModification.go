@@ -52,6 +52,7 @@ type PFCPSessionModificationRequest struct {
 	DSCPtoPPIControlInformation    *ie.DSCPtoPPIControlInformation                                     //DSCP to PPI Control Information
 	FQCSIDList                     []ie.FQCSID                                                         //FQ-CSID
 	Unknown                        []uint32                                                            `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                        []uint32                                                            `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionModificationRequest) Field() tlv.Field {
@@ -193,6 +194,7 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 	}
 	var seen [15]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.F_SEID_TYPE:
 			if seen[0] {
@@ -208,24 +210,28 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemovePDR = append(t.RemovePDR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.REMOVE_FAR_TYPE:
 			var v ie.RemoveFAR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemoveFAR = append(t.RemoveFAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.REMOVE_URR_TYPE:
 			var v ie.RemoveURR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemoveURR = append(t.RemoveURR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.REMOVE_QER_TYPE:
 			var v ie.RemoveQER
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemoveQER = append(t.RemoveQER, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.REMOVE_BAR_TYPE:
 			if seen[1] {
@@ -236,36 +242,42 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemoveBAR = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.REMOVE_TRAFFIC_ENDPOINT_TYPE:
 			var v ie.RemoveTrafficEndpoint
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemoveTrafficEndpoint = append(t.RemoveTrafficEndpoint, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_PDR_TYPE:
 			var v ie.CreatePDR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatePDR = append(t.CreatePDR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_FAR_TYPE:
 			var v ie.CreateFAR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateFAR = append(t.CreateFAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_URR_TYPE:
 			var v ie.CreateURR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateURR = append(t.CreateURR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_QER_TYPE:
 			var v ie.CreateQER
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateQER = append(t.CreateQER, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_BAR_TYPE:
 			if seen[2] {
@@ -276,36 +288,42 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateBAR = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_TRAFFIC_ENDPOINT_TYPE:
 			var v ie.CreateTrafficEndpoint
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateTrafficEndpoint = append(t.CreateTrafficEndpoint, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_PDR_TYPE:
 			var v ie.UpdatePDR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdatePDR = append(t.UpdatePDR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_FAR_TYPE:
 			var v ie.UpdateFAR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateFAR = append(t.UpdateFAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_URR_TYPE:
 			var v ie.UpdateURR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateURR = append(t.UpdateURR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_QER_TYPE:
 			var v ie.UpdateQER
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateQER = append(t.UpdateQER, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_BAR_SESSION_MODIFICATION_REQUEST_TYPE:
 			if seen[3] {
@@ -316,6 +334,7 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateBAR = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_TRAFFIC_ENDPOINT_TYPE:
 			t.UpdateTrafficEndpoint = append(t.UpdateTrafficEndpoint, de.Value)
@@ -333,6 +352,7 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.QueryURR = append(t.QueryURR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.USER_PLANE_INACTIVITY_TIMER_TYPE:
 			if seen[5] {
@@ -341,12 +361,14 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			seen[5] = true
 			t.UserPlaneInactivityTimer = de.Value
 		case ie.QUERY_URR_REFERENCE_TYPE:
+			opt = true
 			if seen[6] {
 				continue
 			}
 			seen[6] = true
 			t.QueryURRReference = de.Value
 		case ie.TRACE_INFORMATION_TYPE:
+			opt = true
 			if seen[7] {
 				continue
 			}
@@ -357,18 +379,21 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemoveMAR = append(t.RemoveMAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_MAR_TYPE:
 			var v ie.UpdateMAR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateMAR = append(t.UpdateMAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_MAR_TYPE:
 			var v ie.CreateMAR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateMAR = append(t.CreateMAR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.NODE_ID_TYPE:
 			if seen[8] {
@@ -384,24 +409,28 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.TSCManagementInformation = append(t.TSCManagementInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.REMOVE_SRR_TYPE:
 			var v ie.RemoveSRR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.RemoveSRR = append(t.RemoveSRR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.CREATE_SRR_TYPE:
 			var v ie.CreateSRR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreateSRR = append(t.CreateSRR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATE_SRR_TYPE:
 			var v ie.UpdateSRR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateSRR = append(t.UpdateSRR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PROVIDE_ATSSS_CONTROL_INFORMATION_TYPE:
 			if seen[9] {
@@ -412,6 +441,7 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ProvideATSSSControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.ETHERNET_CONTEXT_INFORMATION_TYPE:
 			if seen[10] {
@@ -422,16 +452,20 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.EthernetContextInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.ACCESS_AVAILABILITY_INFORMATION_TYPE:
+			opt = true
 			t.AccessAvailabilityInformation = append(t.AccessAvailabilityInformation, de.Value)
 		case ie.QUERY_PACKET_RATE_STATUS_IE_WITHIN_PFCP_SESSION_MODIFICATION_REQUEST_TYPE:
 			var v ie.QueryPacketRateStatusIEwithinPFCPSessionModificationRequest
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.QueryPacketRateStatus = append(t.QueryPacketRateStatus, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.S_NSSAI_TYPE:
+			opt = true
 			if seen[11] {
 				continue
 			}
@@ -454,6 +488,7 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSSessionN4ControlInformation = append(t.MBSSessionN4ControlInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.DSCP_TO_PPI_CONTROL_INFORMATION_TYPE:
 			if seen[14] {
@@ -464,6 +499,7 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.DSCPtoPPIControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.FQ_CSID_TYPE:
 			var v ie.FQCSID
@@ -474,7 +510,12 @@ func (t *PFCPSessionModificationRequest) UnmarshalBinary(buf []byte) (err error)
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	return
@@ -519,6 +560,7 @@ type PFCPSessionModificationResponse struct {
 	PartialFailureInformation         []ie.PartialFailureInformation                                      //Partial Failure Information
 	MBSSessionN4Information           []ie.MBSSessionN4Information                                        //MBS Session N4 Information
 	Unknown                           []uint32                                                            `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
+	Invalid                           []uint32                                                            `json:"-"` //optional IEs discarded, their value faulty (TS 29.244 7.6.8)
 }
 
 func (t *PFCPSessionModificationResponse) Field() tlv.Field {
@@ -577,6 +619,7 @@ func (t *PFCPSessionModificationResponse) UnmarshalBinary(buf []byte) (err error
 	}
 	var seen [7]bool
 	for _, de := range elements {
+		opt := false
 		switch de.Type {
 		case ie.CAUSE_TYPE:
 			if seen[0] {
@@ -598,8 +641,10 @@ func (t *PFCPSessionModificationResponse) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatedPDR = append(t.CreatedPDR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.LOAD_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[2] {
 				continue
 			}
@@ -608,8 +653,10 @@ func (t *PFCPSessionModificationResponse) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.LoadControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.OVERLOAD_CONTROL_INFORMATION_TYPE:
+			opt = true
 			if seen[3] {
 				continue
 			}
@@ -618,12 +665,14 @@ func (t *PFCPSessionModificationResponse) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.OverloadControlInformation = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.USAGE_REPORT_SESSION_MODIFICATION_RESPONSE_TYPE:
 			var v ie.UsageReportSessionModificationResponse
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UsageReport = append(t.UsageReport, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.FAILED_RULE_ID_TYPE:
 			if seen[4] {
@@ -642,12 +691,14 @@ func (t *PFCPSessionModificationResponse) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CreatedUpdatedTrafficEndpoint = append(t.CreatedUpdatedTrafficEndpoint, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.TSC_MANAGEMENT_INFORMATION_IE_WITHIN_PFCP_SESSION_MODIFICATION_REQUEST_TYPE:
 			var v ie.TSCManagementInformationIEwithinPFCPSessionModificationRequest
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.TSCManagementInformation = append(t.TSCManagementInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.ATSSS_CONTROL_PARAMETERS_TYPE:
 			if seen[6] {
@@ -658,36 +709,46 @@ func (t *PFCPSessionModificationResponse) UnmarshalBinary(buf []byte) (err error
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ATSSSControlParameters = &v
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.UPDATED_PDR_TYPE:
 			var v ie.UpdatedPDR
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdatedPDR = append(t.UpdatedPDR, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PACKET_RATE_STATUS_REPORT_TYPE:
 			var v ie.PacketRateStatusReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PacketRateStatusReport = append(t.PacketRateStatusReport, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.PARTIAL_FAILURE_INFORMATION_TYPE:
 			var v ie.PartialFailureInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PartialFailureInformation = append(t.PartialFailureInformation, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case ie.MBS_SESSION_N4_INFORMATION_TYPE:
 			var v ie.MBSSessionN4Information
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MBSSessionN4Information = append(t.MBSSessionN4Information, v)
 				t.Unknown = append(t.Unknown, v.Unknown...)
+				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		default:
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return pfcp.Faulty(de.Type, err)
+			if err = pfcp.Faulty(de.Type, err); opt && pfcp.Discardable(err) {
+				t.Invalid = append(t.Invalid, de.Type)
+				err = nil
+				continue
+			}
+			return err
 		}
 	}
 	if !seen[0] {
