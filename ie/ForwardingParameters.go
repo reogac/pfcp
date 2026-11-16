@@ -6,17 +6,6 @@ import (
 	"github.com/reogac/pfcp/tlv"
 )
 
-func NewForwardingParameters(dest uint8, in string, oc *OuterHeaderCreation, pid string) (far *ForwardingParameters) {
-	far = &ForwardingParameters{}
-	far.DestinationInterface = dest
-	far.NetworkInstance = []byte(in)
-	if oc != nil {
-		far.OuterHeaderCreation = oc
-	}
-	far.ForwardingPolicy = []byte(pid)
-	return
-}
-
 /* 'Forwarding Parameters' data structure */
 type ForwardingParameters struct {
 	DestinationInterface              uint8                //Destination Interface
