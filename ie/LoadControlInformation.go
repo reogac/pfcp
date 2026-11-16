@@ -1,13 +1,16 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Load Control Information' data structure */
 type LoadControlInformation struct {
-	LoadControlSequenceNumber []byte //Sequence Number
-	LoadMetric                []byte //Metric
+	LoadControlSequenceNumber []byte   //Sequence Number
+	LoadMetric                []byte   //Metric
+	Unknown                   []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *LoadControlInformation) Field() tlv.Field {
@@ -23,18 +26,33 @@ func (t *LoadControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [2]bool
 	for _, de := range elements {
 		switch de.Type {
 		case SEQUENCE_NUMBER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.LoadControlSequenceNumber = de.Value
 		case METRIC_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.LoadMetric = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: SEQUENCE_NUMBER_TYPE}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: METRIC_TYPE}
 	}
 	return
 }

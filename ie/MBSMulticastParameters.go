@@ -12,7 +12,8 @@ type MBSMulticastParameters struct {
 	NetworkInstance          []byte              //Network Instance
 	OuterHeaderCreation      OuterHeaderCreation //Outer Header Creation
 	TransportLevelmarking    []byte              //Transport Level Marking
-	DestinationInterfaceType []byte              //3GPP Interface Type
+	DestinationInterfaceType [][]byte            //3GPP Interface Type
+	Unknown                  []uint32            `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *MBSMulticastParameters) Field() tlv.Field {
@@ -25,8 +26,8 @@ func (t *MBSMulticastParameters) Field() tlv.Field {
 	if len(t.TransportLevelmarking) > 0 {
 		fields = append(fields, tlv.TLVFrom(TRANSPORT_LEVEL_MARKING_TYPE, tlv.Bytes(t.TransportLevelmarking)))
 	}
-	if len(t.DestinationInterfaceType) > 0 {
-		fields = append(fields, tlv.TLVFrom(_INTERFACE_TYPE_TYPE, tlv.Bytes(t.DestinationInterfaceType)))
+	for _, ie := range t.DestinationInterfaceType {
+		fields = append(fields, tlv.TLVFrom(_INTERFACE_TYPE_TYPE, tlv.Bytes(ie)))
 	}
 	return tlv.TLV(MBS_MULTICAST_PARAMETERS_TYPE, fields...)
 }
@@ -37,20 +38,38 @@ func (t *MBSMulticastParameters) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [4]bool
 	for _, de := range elements {
 		switch de.Type {
 		case DESTINATION_INTERFACE_TYPE:
-			err = pfcp.UnmarshalUint8(de.Value, &t.DestinationInterface)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &t.DestinationInterface)
 		case NETWORK_INSTANCE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.NetworkInstance = de.Value
 		case OUTER_HEADER_CREATION_TYPE:
-			err = de.UnmarshalValue(&t.OuterHeaderCreation)
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
+			if err = de.UnmarshalValue(&t.OuterHeaderCreation); err == nil {
+			}
 		case TRANSPORT_LEVEL_MARKING_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.TransportLevelmarking = de.Value
 		case _INTERFACE_TYPE_TYPE:
-			t.DestinationInterfaceType = de.Value
+			t.DestinationInterfaceType = append(t.DestinationInterfaceType, de.Value)
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

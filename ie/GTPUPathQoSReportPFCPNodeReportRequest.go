@@ -8,28 +8,29 @@ import (
 
 /* 'GTP-U Path QoS Report PFCP Node Report Request' data structure */
 type GTPUPathQoSReportPFCPNodeReportRequest struct {
-	RemoteGTPUPeer              []byte  //Remote GTP-U Peer
-	GTPUPathInterfaceType       []byte  //GTP-U Path Interface Type
-	QoSReportTrigger            []byte  //QoS Report Trigger
-	DSCP                        []byte  //Transport Level Marking
-	MeasurementPeriod           *uint32 //Measurement Period
-	AveragePacketDelayThreshold []byte  //Average Packet Delay
-	MinimumPacketDelayThreshold []byte  //Minimum Packet Delay
-	MaximumPacketDelayThreshold []byte  //Maximum Packet Delay
-	MinimumWaitingTime          []byte  //Timer
+	RemoteGTPUPeer              [][]byte //Remote GTP-U Peer
+	GTPUPathInterfaceType       []byte   //GTP-U Path Interface Type
+	QoSReportTrigger            []byte   //QoS Report Trigger
+	DSCP                        [][]byte //Transport Level Marking
+	MeasurementPeriod           *uint32  //Measurement Period
+	AveragePacketDelayThreshold []byte   //Average Packet Delay
+	MinimumPacketDelayThreshold []byte   //Minimum Packet Delay
+	MaximumPacketDelayThreshold []byte   //Maximum Packet Delay
+	MinimumWaitingTime          []byte   //Timer
+	Unknown                     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *GTPUPathQoSReportPFCPNodeReportRequest) Field() tlv.Field {
 	fields := []tlv.Field{}
-	if len(t.RemoteGTPUPeer) > 0 {
-		fields = append(fields, tlv.TLVFrom(REMOTE_GTP_U_PEER_TYPE, tlv.Bytes(t.RemoteGTPUPeer)))
+	for _, ie := range t.RemoteGTPUPeer {
+		fields = append(fields, tlv.TLVFrom(REMOTE_GTP_U_PEER_TYPE, tlv.Bytes(ie)))
 	}
 	if len(t.GTPUPathInterfaceType) > 0 {
 		fields = append(fields, tlv.TLVFrom(GTP_U_PATH_INTERFACE_TYPE_TYPE, tlv.Bytes(t.GTPUPathInterfaceType)))
 	}
 	fields = append(fields, tlv.TLVFrom(QOS_REPORT_TRIGGER_TYPE, tlv.Bytes(t.QoSReportTrigger)))
-	if len(t.DSCP) > 0 {
-		fields = append(fields, tlv.TLVFrom(TRANSPORT_LEVEL_MARKING_TYPE, tlv.Bytes(t.DSCP)))
+	for _, ie := range t.DSCP {
+		fields = append(fields, tlv.TLVFrom(TRANSPORT_LEVEL_MARKING_TYPE, tlv.Bytes(ie)))
 	}
 	if t.MeasurementPeriod != nil {
 		fields = append(fields, tlv.TLVFrom(MEASUREMENT_PERIOD_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.MeasurementPeriod))))
@@ -55,35 +56,67 @@ func (t *GTPUPathQoSReportPFCPNodeReportRequest) UnmarshalBinary(buf []byte) (er
 	if err != nil {
 		return
 	}
+	var seen [7]bool
 	for _, de := range elements {
 		switch de.Type {
 		case REMOTE_GTP_U_PEER_TYPE:
-			t.RemoteGTPUPeer = de.Value
+			t.RemoteGTPUPeer = append(t.RemoteGTPUPeer, de.Value)
 		case GTP_U_PATH_INTERFACE_TYPE_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.GTPUPathInterfaceType = de.Value
 		case QOS_REPORT_TRIGGER_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.QoSReportTrigger = de.Value
 		case TRANSPORT_LEVEL_MARKING_TYPE:
-			t.DSCP = de.Value
+			t.DSCP = append(t.DSCP, de.Value)
 		case MEASUREMENT_PERIOD_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.MeasurementPeriod = &v
 			}
 		case AVERAGE_PACKET_DELAY_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.AveragePacketDelayThreshold = de.Value
 		case MINIMUM_PACKET_DELAY_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			t.MinimumPacketDelayThreshold = de.Value
 		case MAXIMUM_PACKET_DELAY_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			t.MaximumPacketDelayThreshold = de.Value
 		case TIMER_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			t.MinimumWaitingTime = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: QOS_REPORT_TRIGGER_TYPE}
 	}
 	return
 }

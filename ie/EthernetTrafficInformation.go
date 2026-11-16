@@ -6,17 +6,18 @@ import (
 
 /* 'Ethernet Traffic Information' data structure */
 type EthernetTrafficInformation struct {
-	MACAddressesDetected []byte //MAC Addresses Detected
-	MACAddressesRemoved  []byte //MAC Addresses Removed
+	MACAddressesDetected [][]byte //MAC Addresses Detected
+	MACAddressesRemoved  [][]byte //MAC Addresses Removed
+	Unknown              []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *EthernetTrafficInformation) Field() tlv.Field {
 	fields := []tlv.Field{}
-	if len(t.MACAddressesDetected) > 0 {
-		fields = append(fields, tlv.TLVFrom(MAC_ADDRESSES_DETECTED_TYPE, tlv.Bytes(t.MACAddressesDetected)))
+	for _, ie := range t.MACAddressesDetected {
+		fields = append(fields, tlv.TLVFrom(MAC_ADDRESSES_DETECTED_TYPE, tlv.Bytes(ie)))
 	}
-	if len(t.MACAddressesRemoved) > 0 {
-		fields = append(fields, tlv.TLVFrom(MAC_ADDRESSES_REMOVED_TYPE, tlv.Bytes(t.MACAddressesRemoved)))
+	for _, ie := range t.MACAddressesRemoved {
+		fields = append(fields, tlv.TLVFrom(MAC_ADDRESSES_REMOVED_TYPE, tlv.Bytes(ie)))
 	}
 	return tlv.TLV(ETHERNET_TRAFFIC_INFORMATION_TYPE, fields...)
 }
@@ -30,11 +31,11 @@ func (t *EthernetTrafficInformation) UnmarshalBinary(buf []byte) (err error) {
 	for _, de := range elements {
 		switch de.Type {
 		case MAC_ADDRESSES_DETECTED_TYPE:
-			t.MACAddressesDetected = de.Value
+			t.MACAddressesDetected = append(t.MACAddressesDetected, de.Value)
 		case MAC_ADDRESSES_REMOVED_TYPE:
-			t.MACAddressesRemoved = de.Value
+			t.MACAddressesRemoved = append(t.MACAddressesRemoved, de.Value)
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

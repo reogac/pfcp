@@ -1,12 +1,15 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'ATSSS-LL Parameters' data structure */
 type ATSSSLLParameters struct {
-	ATSSSLLInformation []byte //ATSSS-LL Information
+	ATSSSLLInformation []byte   //ATSSS-LL Information
+	Unknown            []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *ATSSSLLParameters) Field() tlv.Field {
@@ -21,16 +24,24 @@ func (t *ATSSSLLParameters) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ATSSS_LL_INFORMATION_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.ATSSSLLInformation = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ATSSS_LL_INFORMATION_TYPE}
 	}
 	return
 }

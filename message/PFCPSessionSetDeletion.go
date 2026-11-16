@@ -11,6 +11,7 @@ import (
 type PFCPSessionSetDeletionRequest struct {
 	NodeID     ie.NodeID   //Node ID
 	FQCSIDList []ie.FQCSID //FQ-CSID
+	Unknown    []uint32    `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionSetDeletionRequest) Field() tlv.Field {
@@ -28,21 +29,30 @@ func (t *PFCPSessionSetDeletionRequest) UnmarshalBinary(buf []byte) (err error) 
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		case ie.FQ_CSID_TYPE:
 			var v ie.FQCSID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.FQCSIDList = append(t.FQCSIDList, v)
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
 	}
 	return
 }
@@ -73,6 +83,7 @@ type PFCPSessionSetDeletionResponse struct {
 	NodeID      ie.NodeID //Node ID
 	Cause       uint8     //Cause
 	OffendingIE *uint16   //Offending IE
+	Unknown     []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionSetDeletionResponse) Field() tlv.Field {
@@ -91,22 +102,44 @@ func (t *PFCPSessionSetDeletionResponse) UnmarshalBinary(buf []byte) (err error)
 	if err != nil {
 		return
 	}
+	var seen [3]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		case ie.CAUSE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		case ie.OFFENDING_IE_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v uint16
 			if err = pfcp.UnmarshalUint16(de.Value, &v); err == nil {
 				t.OffendingIE = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
+		}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: ie.CAUSE_TYPE}
+	}
+	if t.Cause < ie.CauseRequestRejected {
+		if !seen[0] {
+			return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
 		}
 	}
 	return

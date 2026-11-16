@@ -1,20 +1,23 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Application ID's PFDs' data structure */
 type ApplicationIDsPFDs struct {
 	ApplicationID ApplicationID //Application ID
-	PFDcontext    *PFDcontext   //PFD context
+	PFDcontext    []PFDcontext  //PFD context
+	Unknown       []uint32      `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *ApplicationIDsPFDs) Field() tlv.Field {
 	fields := []tlv.Field{}
 	fields = append(fields, tlv.TLVFrom(APPLICATION_ID_TYPE, tlv.Bytes(t.ApplicationID.Bytes())))
-	if t.PFDcontext != nil {
-		fields = append(fields, t.PFDcontext.Field())
+	for _, ie := range t.PFDcontext {
+		fields = append(fields, ie.Field())
 	}
 	return tlv.TLV(APPLICATION_ID_S_PFDS_TYPE, fields...)
 }
@@ -25,21 +28,31 @@ func (t *ApplicationIDsPFDs) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case APPLICATION_ID_TYPE:
-			err = de.UnmarshalValue(&t.ApplicationID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.ApplicationID); err == nil {
+			}
 		case PFD_CONTEXT_TYPE:
 			var v PFDcontext
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.PFDcontext = &v
+				t.PFDcontext = append(t.PFDcontext, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: APPLICATION_ID_TYPE}
 	}
 	return
 }

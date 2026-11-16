@@ -9,7 +9,8 @@ import (
 
 /* 'PFCP Association Release Request' data structure */
 type PFCPAssociationReleaseRequest struct {
-	NodeID ie.NodeID //Node ID
+	NodeID  ie.NodeID //Node ID
+	Unknown []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPAssociationReleaseRequest) Field() tlv.Field {
@@ -24,16 +25,25 @@ func (t *PFCPAssociationReleaseRequest) UnmarshalBinary(buf []byte) (err error) 
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
 	}
 	return
 }
@@ -61,8 +71,9 @@ func (t *PFCPAssociationReleaseRequest) UnmarshalJSON(buf []byte) (err error) {
 
 /* 'PFCP Association Release Response' data structure */
 type PFCPAssociationReleaseResponse struct {
-	NodeID ie.NodeID //Node ID
-	Cause  uint8     //Cause
+	NodeID  ie.NodeID //Node ID
+	Cause   uint8     //Cause
+	Unknown []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPAssociationReleaseResponse) Field() tlv.Field {
@@ -78,17 +89,35 @@ func (t *PFCPAssociationReleaseResponse) UnmarshalBinary(buf []byte) (err error)
 	if err != nil {
 		return
 	}
+	var seen [2]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		case ie.CAUSE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
+		}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: ie.CAUSE_TYPE}
+	}
+	if t.Cause < ie.CauseRequestRejected {
+		if !seen[0] {
+			return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
 		}
 	}
 	return

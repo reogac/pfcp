@@ -14,6 +14,7 @@ type AddMBSUnicastParameters struct {
 	OuterHeaderCreation      OuterHeaderCreation //Outer Header Creation
 	TransportLevelmarking    []byte              //Transport Level Marking
 	DestinationInterfaceType []byte              //3GPP Interface Type
+	Unknown                  []uint32            `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *AddMBSUnicastParameters) Field() tlv.Field {
@@ -39,22 +40,48 @@ func (t *AddMBSUnicastParameters) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [6]bool
 	for _, de := range elements {
 		switch de.Type {
 		case DESTINATION_INTERFACE_TYPE:
-			err = pfcp.UnmarshalUint8(de.Value, &t.DestinationInterface)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &t.DestinationInterface)
 		case MBS_UNICAST_PARAMETERS_ID_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.MBSUnicastParametersID = de.Value
 		case NETWORK_INSTANCE_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.NetworkInstance = de.Value
 		case OUTER_HEADER_CREATION_TYPE:
-			err = de.UnmarshalValue(&t.OuterHeaderCreation)
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
+			if err = de.UnmarshalValue(&t.OuterHeaderCreation); err == nil {
+			}
 		case TRANSPORT_LEVEL_MARKING_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			t.TransportLevelmarking = de.Value
 		case _INTERFACE_TYPE_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			t.DestinationInterfaceType = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

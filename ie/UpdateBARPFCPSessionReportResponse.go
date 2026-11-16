@@ -8,11 +8,12 @@ import (
 
 /* 'Update BAR PFCP Session Report Response' data structure */
 type UpdateBARPFCPSessionReportResponse struct {
-	BARID                           uint8  //BAR ID
-	DownlinkDataNotificationDelay   *uint8 //Downlink Data Notification Delay
-	DLBufferingDuration             []byte //DL Buffering Duration
-	DLBufferingSuggestedPacketCount []byte //DL Buffering Suggested Packet Count
-	SuggestedBufferingPacketsCount  *uint8 //Suggested Buffering Packets Count
+	BARID                           uint8    //BAR ID
+	DownlinkDataNotificationDelay   *uint8   //Downlink Data Notification Delay
+	DLBufferingDuration             []byte   //DL Buffering Duration
+	DLBufferingSuggestedPacketCount []byte   //DL Buffering Suggested Packet Count
+	SuggestedBufferingPacketsCount  *uint8   //Suggested Buffering Packets Count
+	Unknown                         []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *UpdateBARPFCPSessionReportResponse) Field() tlv.Field {
@@ -39,30 +40,54 @@ func (t *UpdateBARPFCPSessionReportResponse) UnmarshalBinary(buf []byte) (err er
 	if err != nil {
 		return
 	}
+	var seen [5]bool
 	for _, de := range elements {
 		switch de.Type {
 		case BAR_ID_TYPE:
-			err = pfcp.UnmarshalUint8(de.Value, &t.BARID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &t.BARID)
 		case DOWNLINK_DATA_NOTIFICATION_DELAY_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.DownlinkDataNotificationDelay = &v
 			}
 		case DL_BUFFERING_DURATION_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.DLBufferingDuration = de.Value
 		case DL_BUFFERING_SUGGESTED_PACKET_COUNT_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.DLBufferingSuggestedPacketCount = de.Value
 		case SUGGESTED_BUFFERING_PACKETS_COUNT_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.SuggestedBufferingPacketsCount = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: BAR_ID_TYPE}
 	}
 	return
 }

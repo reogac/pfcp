@@ -8,17 +8,20 @@ import (
 
 /* 'Downlink Data Report' data structure */
 type DownlinkDataReport struct {
-	PDRID                          uint16 //PDR ID
-	DownlinkDataServiceInformation []byte //Downlink Data Service Information
-	DLDataPacketsSize              []byte //DL Data Packets Size
-	DLDataStatus                   *uint8 //Data Status
+	PDRID                          []uint16 //PDR ID
+	DownlinkDataServiceInformation [][]byte //Downlink Data Service Information
+	DLDataPacketsSize              []byte   //DL Data Packets Size
+	DLDataStatus                   *uint8   //Data Status
+	Unknown                        []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *DownlinkDataReport) Field() tlv.Field {
 	fields := []tlv.Field{}
-	fields = append(fields, tlv.TLVFrom(PDR_ID_TYPE, tlv.Bytes(pfcp.MarshalUint16(t.PDRID))))
-	if len(t.DownlinkDataServiceInformation) > 0 {
-		fields = append(fields, tlv.TLVFrom(DOWNLINK_DATA_SERVICE_INFORMATION_TYPE, tlv.Bytes(t.DownlinkDataServiceInformation)))
+	for _, ie := range t.PDRID {
+		fields = append(fields, tlv.TLVFrom(PDR_ID_TYPE, tlv.Bytes(pfcp.MarshalUint16(ie))))
+	}
+	for _, ie := range t.DownlinkDataServiceInformation {
+		fields = append(fields, tlv.TLVFrom(DOWNLINK_DATA_SERVICE_INFORMATION_TYPE, tlv.Bytes(ie)))
 	}
 	if len(t.DLDataPacketsSize) > 0 {
 		fields = append(fields, tlv.TLVFrom(DL_DATA_PACKETS_SIZE_TYPE, tlv.Bytes(t.DLDataPacketsSize)))
@@ -35,25 +38,40 @@ func (t *DownlinkDataReport) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [2]bool
 	for _, de := range elements {
 		switch de.Type {
 		case PDR_ID_TYPE:
-			err = pfcp.UnmarshalUint16(de.Value, &t.PDRID)
+			var v uint16
+			if err = pfcp.UnmarshalExtendable(de.Value, 2, 2, &v); err == nil {
+				t.PDRID = append(t.PDRID, v)
+			}
 		case DOWNLINK_DATA_SERVICE_INFORMATION_TYPE:
-			t.DownlinkDataServiceInformation = de.Value
+			t.DownlinkDataServiceInformation = append(t.DownlinkDataServiceInformation, de.Value)
 		case DL_DATA_PACKETS_SIZE_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.DLDataPacketsSize = de.Value
 		case DATA_STATUS_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.DLDataStatus = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if len(t.PDRID) == 0 {
+		return &pfcp.MissingIE{Type: PDR_ID_TYPE}
 	}
 	return
 }

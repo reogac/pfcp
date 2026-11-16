@@ -1,15 +1,18 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'MBS Session N4 Information' data structure */
 type MBSSessionN4Information struct {
-	MBSSessionIdentifier []byte //MBS Session Identifier
-	AreaSessionID        []byte //Area Session ID
-	N19mbDLTunnelID      *FTEID //F-TEID
-	MBSN4RespFlags       []byte //MBSN4Resp-Flags
+	MBSSessionIdentifier []byte   //MBS Session Identifier
+	AreaSessionID        []byte   //Area Session ID
+	N19mbDLTunnelID      *FTEID   //F-TEID
+	MBSN4RespFlags       []byte   //MBSN4Resp-Flags
+	Unknown              []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *MBSSessionN4Information) Field() tlv.Field {
@@ -33,25 +36,45 @@ func (t *MBSSessionN4Information) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [4]bool
 	for _, de := range elements {
 		switch de.Type {
 		case MBS_SESSION_IDENTIFIER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.MBSSessionIdentifier = de.Value
 		case AREA_SESSION_ID_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.AreaSessionID = de.Value
 		case F_TEID_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v FTEID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.N19mbDLTunnelID = &v
 			}
 		case MBSN4RESP_FLAGS_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.MBSN4RespFlags = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: MBS_SESSION_IDENTIFIER_TYPE}
 	}
 	return
 }

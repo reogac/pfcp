@@ -8,6 +8,7 @@ import (
 
 /* 'PFCP Version Not Supported Response' data structure */
 type PFCPVersionNotSupportedResponse struct {
+	Unknown []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPVersionNotSupportedResponse) Field() tlv.Field {
@@ -24,7 +25,7 @@ func (t *PFCPVersionNotSupportedResponse) UnmarshalBinary(buf []byte) (err error
 	for _, de := range elements {
 		switch de.Type {
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

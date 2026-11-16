@@ -12,6 +12,7 @@ type DuplicatingParameters struct {
 	OuterHeaderCreation   *OuterHeaderCreation //Outer Header Creation
 	TransportLevelmarking []byte               //Transport Level Marking
 	ForwardingPolicy      []byte               //Forwarding Policy
+	Unknown               []uint32             `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *DuplicatingParameters) Field() tlv.Field {
@@ -35,21 +36,38 @@ func (t *DuplicatingParameters) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [4]bool
 	for _, de := range elements {
 		switch de.Type {
 		case DESTINATION_INTERFACE_TYPE:
-			err = pfcp.UnmarshalUint8(de.Value, &t.DestinationInterface)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &t.DestinationInterface)
 		case OUTER_HEADER_CREATION_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v OuterHeaderCreation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.OuterHeaderCreation = &v
 			}
 		case TRANSPORT_LEVEL_MARKING_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.TransportLevelmarking = de.Value
 		case FORWARDING_POLICY_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.ForwardingPolicy = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

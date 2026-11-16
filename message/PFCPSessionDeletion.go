@@ -9,6 +9,7 @@ import (
 
 /* 'PFCP Session Deletion Request' data structure */
 type PFCPSessionDeletionRequest struct {
+	Unknown []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionDeletionRequest) Field() tlv.Field {
@@ -25,7 +26,7 @@ func (t *PFCPSessionDeletionRequest) UnmarshalBinary(buf []byte) (err error) {
 	for _, de := range elements {
 		switch de.Type {
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
@@ -64,9 +65,10 @@ type PFCPSessionDeletionResponse struct {
 	UsageReport                       []ie.UsageReportSessionDeletionResponse //Usage Report Session Deletion Response
 	AdditionalUsageReportsInformation []byte                                  //Additional Usage Reports Information
 	PacketRateStatusReport            *ie.PacketRateStatusReport              //Packet Rate Status Report
-	SessionReport                     *ie.SessionReport                       //Session Report
-	MBSSessionN4Information           *ie.MBSSessionN4Information             //MBS Session N4 Information
+	SessionReport                     []ie.SessionReport                      //Session Report
+	MBSSessionN4Information           []ie.MBSSessionN4Information            //MBS Session N4 Information
 	PFCPSDRspFlags                    []byte                                  //PFCPSDRsp-Flags
+	Unknown                           []uint32                                `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionDeletionResponse) Field() tlv.Field {
@@ -90,11 +92,11 @@ func (t *PFCPSessionDeletionResponse) Field() tlv.Field {
 	if t.PacketRateStatusReport != nil {
 		fields = append(fields, t.PacketRateStatusReport.Field())
 	}
-	if t.SessionReport != nil {
-		fields = append(fields, t.SessionReport.Field())
+	for _, i := range t.SessionReport {
+		fields = append(fields, i.Field())
 	}
-	if t.MBSSessionN4Information != nil {
-		fields = append(fields, t.MBSSessionN4Information.Field())
+	for _, i := range t.MBSSessionN4Information {
+		fields = append(fields, i.Field())
 	}
 	if len(t.PFCPSDRspFlags) > 0 {
 		fields = append(fields, tlv.TLVFrom(ie.PFCPSDRSP_FLAGS_TYPE, tlv.Bytes(t.PFCPSDRspFlags)))
@@ -108,55 +110,93 @@ func (t *PFCPSessionDeletionResponse) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [7]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.CAUSE_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		case ie.OFFENDING_IE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v uint16
 			if err = pfcp.UnmarshalUint16(de.Value, &v); err == nil {
 				t.OffendingIE = &v
 			}
 		case ie.LOAD_CONTROL_INFORMATION_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v ie.LoadControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.LoadControlInformation = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.OVERLOAD_CONTROL_INFORMATION_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			var v ie.OverloadControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.OverloadControlInformation = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.USAGE_REPORT_SESSION_DELETION_RESPONSE_TYPE:
 			var v ie.UsageReportSessionDeletionResponse
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UsageReport = append(t.UsageReport, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.ADDITIONAL_USAGE_REPORTS_INFORMATION_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			t.AdditionalUsageReportsInformation = de.Value
 		case ie.PACKET_RATE_STATUS_REPORT_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			var v ie.PacketRateStatusReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PacketRateStatusReport = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.SESSION_REPORT_TYPE:
 			var v ie.SessionReport
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.SessionReport = &v
+				t.SessionReport = append(t.SessionReport, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.MBS_SESSION_N4_INFORMATION_TYPE:
 			var v ie.MBSSessionN4Information
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.MBSSessionN4Information = &v
+				t.MBSSessionN4Information = append(t.MBSSessionN4Information, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.PFCPSDRSP_FLAGS_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			t.PFCPSDRspFlags = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.CAUSE_TYPE}
 	}
 	return
 }

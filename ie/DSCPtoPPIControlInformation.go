@@ -8,15 +8,18 @@ import (
 
 /* 'DSCP to PPI Control Information' data structure */
 type DSCPtoPPIControlInformation struct {
-	DSCPtoPPIMappingInformation []byte //DSCP to PPI Mapping Information
-	QFI                         *uint8 //QFI
+	DSCPtoPPIMappingInformation [][]byte //DSCP to PPI Mapping Information
+	QFI                         []uint8  //QFI
+	Unknown                     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *DSCPtoPPIControlInformation) Field() tlv.Field {
 	fields := []tlv.Field{}
-	fields = append(fields, tlv.TLVFrom(DSCP_TO_PPI_MAPPING_INFORMATION_TYPE, tlv.Bytes(t.DSCPtoPPIMappingInformation)))
-	if t.QFI != nil {
-		fields = append(fields, tlv.TLVFrom(QFI_TYPE, tlv.Bytes(pfcp.MarshalUint8(*t.QFI))))
+	for _, ie := range t.DSCPtoPPIMappingInformation {
+		fields = append(fields, tlv.TLVFrom(DSCP_TO_PPI_MAPPING_INFORMATION_TYPE, tlv.Bytes(ie)))
+	}
+	for _, ie := range t.QFI {
+		fields = append(fields, tlv.TLVFrom(QFI_TYPE, tlv.Bytes(pfcp.MarshalUint8(ie))))
 	}
 	return tlv.TLV(DSCP_TO_PPI_CONTROL_INFORMATION_TYPE, fields...)
 }
@@ -30,18 +33,21 @@ func (t *DSCPtoPPIControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	for _, de := range elements {
 		switch de.Type {
 		case DSCP_TO_PPI_MAPPING_INFORMATION_TYPE:
-			t.DSCPtoPPIMappingInformation = de.Value
+			t.DSCPtoPPIMappingInformation = append(t.DSCPtoPPIMappingInformation, de.Value)
 		case QFI_TYPE:
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
-				t.QFI = &v
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
+				t.QFI = append(t.QFI, v)
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if len(t.DSCPtoPPIMappingInformation) == 0 {
+		return &pfcp.MissingIE{Type: DSCP_TO_PPI_MAPPING_INFORMATION_TYPE}
 	}
 	return
 }

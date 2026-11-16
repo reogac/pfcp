@@ -1,15 +1,18 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Overload Control Information' data structure */
 type OverloadControlInformation struct {
-	OverloadControlSequenceNumber   []byte //Sequence Number
-	OverloadReductionMetric         []byte //Metric
-	PeriodofValidity                []byte //Timer
-	OverloadControlInformationFlags []byte //OCI Flags
+	OverloadControlSequenceNumber   []byte   //Sequence Number
+	OverloadReductionMetric         []byte   //Metric
+	PeriodofValidity                []byte   //Timer
+	OverloadControlInformationFlags []byte   //OCI Flags
+	Unknown                         []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *OverloadControlInformation) Field() tlv.Field {
@@ -29,22 +32,48 @@ func (t *OverloadControlInformation) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [4]bool
 	for _, de := range elements {
 		switch de.Type {
 		case SEQUENCE_NUMBER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.OverloadControlSequenceNumber = de.Value
 		case METRIC_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.OverloadReductionMetric = de.Value
 		case TIMER_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.PeriodofValidity = de.Value
 		case OCI_FLAGS_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.OverloadControlInformationFlags = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: SEQUENCE_NUMBER_TYPE}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: METRIC_TYPE}
+	}
+	if !seen[2] {
+		return &pfcp.MissingIE{Type: TIMER_TYPE}
 	}
 	return
 }

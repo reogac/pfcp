@@ -6,9 +6,10 @@ import (
 
 /* 'TSC Management Information IE within PFCP Session Report Request' data structure */
 type TSCManagementInformationIEwithinPFCPSessionReportRequest struct {
-	PortManagementInformationContainer          []byte //Port Management Information Container
-	UserPlaneNodeManagementInformationContainer []byte //Bridge Management Information Container
-	NWTTPortNumber                              []byte //NW-TT Port Number
+	PortManagementInformationContainer          []byte   //Port Management Information Container
+	UserPlaneNodeManagementInformationContainer []byte   //Bridge Management Information Container
+	NWTTPortNumber                              []byte   //NW-TT Port Number
+	Unknown                                     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *TSCManagementInformationIEwithinPFCPSessionReportRequest) Field() tlv.Field {
@@ -31,16 +32,29 @@ func (t *TSCManagementInformationIEwithinPFCPSessionReportRequest) UnmarshalBina
 	if err != nil {
 		return
 	}
+	var seen [3]bool
 	for _, de := range elements {
 		switch de.Type {
 		case PORT_MANAGEMENT_INFORMATION_CONTAINER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.PortManagementInformationContainer = de.Value
 		case BRIDGE_MANAGEMENT_INFORMATION_CONTAINER_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.UserPlaneNodeManagementInformationContainer = de.Value
 		case NW_TT_PORT_NUMBER_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.NWTTPortNumber = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

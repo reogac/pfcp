@@ -6,8 +6,9 @@ import (
 
 /* 'Created Bridge Info for TSC' data structure */
 type CreatedBridgeInfoforTSC struct {
-	DSTTPortNumber      []byte //DS-TT Port Number
-	fivegsUserPlaneNode []byte //5GS User Plane Node
+	DSTTPortNumber      []byte   //DS-TT Port Number
+	FiveGSUserPlaneNode []byte   //5GS User Plane Node
+	Unknown             []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *CreatedBridgeInfoforTSC) Field() tlv.Field {
@@ -15,8 +16,8 @@ func (t *CreatedBridgeInfoforTSC) Field() tlv.Field {
 	if len(t.DSTTPortNumber) > 0 {
 		fields = append(fields, tlv.TLVFrom(DS_TT_PORT_NUMBER_TYPE, tlv.Bytes(t.DSTTPortNumber)))
 	}
-	if len(t.fivegsUserPlaneNode) > 0 {
-		fields = append(fields, tlv.TLVFrom(FIVEGS_USER_PLANE_NODE_TYPE, tlv.Bytes(t.fivegsUserPlaneNode)))
+	if len(t.FiveGSUserPlaneNode) > 0 {
+		fields = append(fields, tlv.TLVFrom(FIVEGS_USER_PLANE_NODE_TYPE, tlv.Bytes(t.FiveGSUserPlaneNode)))
 	}
 	return tlv.TLV(CREATED_BRIDGE_INFO_FOR_TSC_TYPE, fields...)
 }
@@ -27,14 +28,23 @@ func (t *CreatedBridgeInfoforTSC) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [2]bool
 	for _, de := range elements {
 		switch de.Type {
 		case DS_TT_PORT_NUMBER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.DSTTPortNumber = de.Value
 		case FIVEGS_USER_PLANE_NODE_TYPE:
-			t.fivegsUserPlaneNode = de.Value
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
+			t.FiveGSUserPlaneNode = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

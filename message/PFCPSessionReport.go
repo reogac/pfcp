@@ -9,19 +9,20 @@ import (
 
 /* 'PFCP Session Report Request' data structure */
 type PFCPSessionReportRequest struct {
-	ReportType                        uint8                                                              //Report Type
-	DownlinkDataReport                *ie.DownlinkDataReport                                             //Downlink Data Report
-	UsageReport                       []ie.UsageReportSessionReportRequest                               //Usage Report Session Report Request
-	ErrorIndicationReport             *ie.ErrorIndicationReport                                          //Error Indication Report
-	LoadControlInformation            *ie.LoadControlInformation                                         //Load Control Information
-	OverloadControlInformation        *ie.OverloadControlInformation                                     //Overload Control Information
-	AdditionalUsageReportsInformation []byte                                                             //Additional Usage Reports Information
-	PFCPSRReqFlags                    *uint8                                                             //PFCPSRReq-Flags
-	OldCPFSEID                        *ie.FSEID                                                          //F-SEID
-	PacketRateStatusReport            *ie.PacketRateStatusReport                                         //Packet Rate Status Report
-	TSCManagementInformation          *ie.TSCManagementInformationIEwithinPFCPSessionModificationRequest //TSC Management Information IE within PFCP Session Modification Request
-	SessionReport                     *ie.SessionReport                                                  //Session Report
-	Cause                             *uint8                                                             //Cause
+	ReportType                        uint8                                                               //Report Type
+	DownlinkDataReport                *ie.DownlinkDataReport                                              //Downlink Data Report
+	UsageReport                       []ie.UsageReportSessionReportRequest                                //Usage Report Session Report Request
+	ErrorIndicationReport             *ie.ErrorIndicationReport                                           //Error Indication Report
+	LoadControlInformation            *ie.LoadControlInformation                                          //Load Control Information
+	OverloadControlInformation        *ie.OverloadControlInformation                                      //Overload Control Information
+	AdditionalUsageReportsInformation []byte                                                              //Additional Usage Reports Information
+	PFCPSRReqFlags                    *uint8                                                              //PFCPSRReq-Flags
+	OldCPFSEID                        *ie.FSEID                                                           //F-SEID
+	PacketRateStatusReport            *ie.PacketRateStatusReport                                          //Packet Rate Status Report
+	TSCManagementInformation          []ie.TSCManagementInformationIEwithinPFCPSessionModificationRequest //TSC Management Information IE within PFCP Session Modification Request
+	SessionReport                     []ie.SessionReport                                                  //Session Report
+	Cause                             *uint8                                                              //Cause
+	Unknown                           []uint32                                                            `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionReportRequest) Field() tlv.Field {
@@ -54,11 +55,11 @@ func (t *PFCPSessionReportRequest) Field() tlv.Field {
 	if t.PacketRateStatusReport != nil {
 		fields = append(fields, t.PacketRateStatusReport.Field())
 	}
-	if t.TSCManagementInformation != nil {
-		fields = append(fields, t.TSCManagementInformation.Field())
+	for _, i := range t.TSCManagementInformation {
+		fields = append(fields, i.Field())
 	}
-	if t.SessionReport != nil {
-		fields = append(fields, t.SessionReport.Field())
+	for _, i := range t.SessionReport {
+		fields = append(fields, i.Field())
 	}
 	if t.Cause != nil {
 		fields = append(fields, tlv.TLVFrom(ie.CAUSE_TYPE, tlv.Bytes(pfcp.MarshalUint8(*t.Cause))))
@@ -72,73 +73,125 @@ func (t *PFCPSessionReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [10]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.REPORT_TYPE_TYPE:
-			err = pfcp.UnmarshalUint8(de.Value, &t.ReportType)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &t.ReportType)
 		case ie.DOWNLINK_DATA_REPORT_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v ie.DownlinkDataReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.DownlinkDataReport = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.USAGE_REPORT_SESSION_REPORT_REQUEST_TYPE:
 			var v ie.UsageReportSessionReportRequest
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UsageReport = append(t.UsageReport, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.ERROR_INDICATION_REPORT_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v ie.ErrorIndicationReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.ErrorIndicationReport = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.LOAD_CONTROL_INFORMATION_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			var v ie.LoadControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.LoadControlInformation = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.OVERLOAD_CONTROL_INFORMATION_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			var v ie.OverloadControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.OverloadControlInformation = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.ADDITIONAL_USAGE_REPORTS_INFORMATION_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			t.AdditionalUsageReportsInformation = de.Value
 		case ie.PFCPSRREQ_FLAGS_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.PFCPSRReqFlags = &v
 			}
 		case ie.F_SEID_TYPE:
+			if seen[7] {
+				continue
+			}
+			seen[7] = true
 			var v ie.FSEID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.OldCPFSEID = &v
 			}
 		case ie.PACKET_RATE_STATUS_REPORT_TYPE:
+			if seen[8] {
+				continue
+			}
+			seen[8] = true
 			var v ie.PacketRateStatusReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PacketRateStatusReport = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.TSC_MANAGEMENT_INFORMATION_IE_WITHIN_PFCP_SESSION_MODIFICATION_REQUEST_TYPE:
 			var v ie.TSCManagementInformationIEwithinPFCPSessionModificationRequest
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.TSCManagementInformation = &v
+				t.TSCManagementInformation = append(t.TSCManagementInformation, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.SESSION_REPORT_TYPE:
 			var v ie.SessionReport
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.SessionReport = &v
+				t.SessionReport = append(t.SessionReport, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.CAUSE_TYPE:
+			if seen[9] {
+				continue
+			}
+			seen[9] = true
 			var v uint8
 			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
 				t.Cause = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.REPORT_TYPE_TYPE}
 	}
 	return
 }
@@ -176,6 +229,7 @@ type PFCPSessionReportResponse struct {
 	PGWCSMFFQCSID           *ie.FQCSID                             //FQ-CSID
 	GroupId                 []byte                                 //Group ID
 	NodeID                  *ie.NodeID                             //Node ID
+	Unknown                 []uint32                               `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionReportResponse) Field() tlv.Field {
@@ -217,55 +271,100 @@ func (t *PFCPSessionReportResponse) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [10]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.CAUSE_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		case ie.OFFENDING_IE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v uint16
 			if err = pfcp.UnmarshalUint16(de.Value, &v); err == nil {
 				t.OffendingIE = &v
 			}
 		case ie.UPDATE_BAR_PFCP_SESSION_REPORT_RESPONSE_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v ie.UpdateBARPFCPSessionReportResponse
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UpdateBAR = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.PFCPSRRSP_FLAGS_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.PFCPSRRspFlags = &v
 			}
 		case ie.F_SEID_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			var v ie.FSEID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.CPFSEID = &v
 			}
 		case ie.F_TEID_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			var v ie.FTEID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.N4uFTEID = &v
 			}
 		case ie.ALTERNATIVE_SMF_IP_ADDRESS_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			t.AlternativeSMFIPAddress = de.Value
 		case ie.FQ_CSID_TYPE:
+			if seen[7] {
+				continue
+			}
+			seen[7] = true
 			var v ie.FQCSID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.PGWCSMFFQCSID = &v
 			}
 		case ie.GROUP_ID_TYPE:
+			if seen[8] {
+				continue
+			}
+			seen[8] = true
 			t.GroupId = de.Value
 		case ie.NODE_ID_TYPE:
+			if seen[9] {
+				continue
+			}
+			seen[9] = true
 			var v ie.NodeID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.NodeID = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.CAUSE_TYPE}
 	}
 	return
 }

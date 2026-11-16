@@ -8,8 +8,9 @@ import (
 
 /* 'PMF Parameters' data structure */
 type PMFParameters struct {
-	PMFAddressInformation []byte //PMF Address Information
-	QoSflowidentifier     *uint8 //QFI
+	PMFAddressInformation []byte   //PMF Address Information
+	QoSflowidentifier     *uint8   //QFI
+	Unknown               []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PMFParameters) Field() tlv.Field {
@@ -27,21 +28,33 @@ func (t *PMFParameters) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [2]bool
 	for _, de := range elements {
 		switch de.Type {
 		case PMF_ADDRESS_INFORMATION_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.PMFAddressInformation = de.Value
 		case QFI_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.QoSflowidentifier = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: PMF_ADDRESS_INFORMATION_TYPE}
 	}
 	return
 }

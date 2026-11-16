@@ -1,13 +1,16 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Transport Delay Reporting' data structure */
 type TransportDelayReporting struct {
-	PrecedingULGTPUPeer []byte //Remote GTP-U Peer
-	DSCP                []byte //Transport Level Marking
+	PrecedingULGTPUPeer []byte   //Remote GTP-U Peer
+	DSCP                []byte   //Transport Level Marking
+	Unknown             []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *TransportDelayReporting) Field() tlv.Field {
@@ -25,18 +28,30 @@ func (t *TransportDelayReporting) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [2]bool
 	for _, de := range elements {
 		switch de.Type {
 		case REMOTE_GTP_U_PEER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.PrecedingULGTPUPeer = de.Value
 		case TRANSPORT_LEVEL_MARKING_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.DSCP = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: REMOTE_GTP_U_PEER_TYPE}
 	}
 	return
 }

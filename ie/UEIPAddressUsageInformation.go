@@ -1,6 +1,8 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
@@ -13,6 +15,7 @@ type UEIPAddressUsageInformation struct {
 	NetworkInstance                []byte       //Network Instance
 	UEIPAddressPoolId              *UEIPAddress //UE IP Address
 	SNSSAI                         []byte       //S-NSSAI
+	Unknown                        []uint32     `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *UEIPAddressUsageInformation) Field() tlv.Field {
@@ -37,31 +40,75 @@ func (t *UEIPAddressUsageInformation) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [7]bool
 	for _, de := range elements {
 		switch de.Type {
 		case SEQUENCE_NUMBER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.UEIPAddressUsageSequenceNumber = de.Value
 		case METRIC_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.UEIPAddressUsageMetric = de.Value
 		case VALIDITY_TIMER_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.ValidityTimer = de.Value
 		case NUMBER_OF_UE_IP_ADDRESSES_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.NumberofUEIPAddresses = de.Value
 		case NETWORK_INSTANCE_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			t.NetworkInstance = de.Value
 		case UE_IP_ADDRESS_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			var v UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPAddressPoolId = &v
 			}
 		case S_NSSAI_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			t.SNSSAI = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: SEQUENCE_NUMBER_TYPE}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: METRIC_TYPE}
+	}
+	if !seen[2] {
+		return &pfcp.MissingIE{Type: VALIDITY_TIMER_TYPE}
+	}
+	if !seen[3] {
+		return &pfcp.MissingIE{Type: NUMBER_OF_UE_IP_ADDRESSES_TYPE}
+	}
+	if !seen[4] {
+		return &pfcp.MissingIE{Type: NETWORK_INSTANCE_TYPE}
 	}
 	return
 }

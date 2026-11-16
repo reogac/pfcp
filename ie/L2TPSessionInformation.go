@@ -6,11 +6,12 @@ import (
 
 /* 'L2TP Session Information' data structure */
 type L2TPSessionInformation struct {
-	CallingNumber          []byte //Calling Number
-	CalledNumber           []byte //Called Number
-	MaximumReceiveUnit     []byte //Maximum Receive Unit
-	L2TPSessionIndications []byte //L2TP Session Indications
-	L2TPUserAuthentication []byte //L2TP User Authentication IE
+	CallingNumber          []byte   //Calling Number
+	CalledNumber           []byte   //Called Number
+	MaximumReceiveUnit     []byte   //Maximum Receive Unit
+	L2TPSessionIndications []byte   //L2TP Session Indications
+	L2TPUserAuthentication []byte   //L2TP User Authentication IE
+	Unknown                []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *L2TPSessionInformation) Field() tlv.Field {
@@ -39,20 +40,41 @@ func (t *L2TPSessionInformation) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [5]bool
 	for _, de := range elements {
 		switch de.Type {
 		case CALLING_NUMBER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.CallingNumber = de.Value
 		case CALLED_NUMBER_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.CalledNumber = de.Value
 		case MAXIMUM_RECEIVE_UNIT_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.MaximumReceiveUnit = de.Value
 		case L2TP_SESSION_INDICATIONS_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.L2TPSessionIndications = de.Value
 		case L2TP_USER_AUTHENTICATION_IE_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			t.L2TPUserAuthentication = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

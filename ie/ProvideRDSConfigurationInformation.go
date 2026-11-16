@@ -6,7 +6,8 @@ import (
 
 /* 'Provide RDS Configuration Information' data structure */
 type ProvideRDSConfigurationInformation struct {
-	RDSConfigurationInformation []byte //RDS Configuration Information
+	RDSConfigurationInformation []byte   //RDS Configuration Information
+	Unknown                     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *ProvideRDSConfigurationInformation) Field() tlv.Field {
@@ -23,12 +24,17 @@ func (t *ProvideRDSConfigurationInformation) UnmarshalBinary(buf []byte) (err er
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case RDS_CONFIGURATION_INFORMATION_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.RDSConfigurationInformation = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

@@ -1,14 +1,17 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'L2TP Tunnel Information' data structure */
 type L2TPTunnelInformation struct {
-	LNSAddress       []byte //LNS Address
-	TunnelPassword   []byte //Tunnel Password
-	TunnelPreference []byte //Tunnel Preference
+	LNSAddress       []byte   //LNS Address
+	TunnelPassword   []byte   //Tunnel Password
+	TunnelPreference []byte   //Tunnel Preference
+	Unknown          []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *L2TPTunnelInformation) Field() tlv.Field {
@@ -29,20 +32,36 @@ func (t *L2TPTunnelInformation) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [3]bool
 	for _, de := range elements {
 		switch de.Type {
 		case LNS_ADDRESS_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.LNSAddress = de.Value
 		case TUNNEL_PASSWORD_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.TunnelPassword = de.Value
 		case TUNNEL_PREFERENCE_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.TunnelPreference = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: LNS_ADDRESS_TYPE}
 	}
 	return
 }

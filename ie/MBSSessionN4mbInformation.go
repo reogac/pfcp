@@ -6,7 +6,8 @@ import (
 
 /* 'MBS Session N4mb Information' data structure */
 type MBSSessionN4mbInformation struct {
-	MulticastTransportInformation []byte //Multicast Transport Information
+	MulticastTransportInformation []byte   //Multicast Transport Information
+	Unknown                       []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *MBSSessionN4mbInformation) Field() tlv.Field {
@@ -23,12 +24,17 @@ func (t *MBSSessionN4mbInformation) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case MULTICAST_TRANSPORT_INFORMATION_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.MulticastTransportInformation = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

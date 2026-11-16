@@ -6,13 +6,14 @@ import (
 
 /* 'PFCP Session Retention Information within PFCP Association Setup Request' data structure */
 type PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest struct {
-	CPPFCPEntityIPAddress []byte //CP PFCP Entity IP Address
+	CPPFCPEntityIPAddress [][]byte //CP PFCP Entity IP Address
+	Unknown               []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) Field() tlv.Field {
 	fields := []tlv.Field{}
-	if len(t.CPPFCPEntityIPAddress) > 0 {
-		fields = append(fields, tlv.TLVFrom(CP_PFCP_ENTITY_IP_ADDRESS_TYPE, tlv.Bytes(t.CPPFCPEntityIPAddress)))
+	for _, ie := range t.CPPFCPEntityIPAddress {
+		fields = append(fields, tlv.TLVFrom(CP_PFCP_ENTITY_IP_ADDRESS_TYPE, tlv.Bytes(ie)))
 	}
 	return tlv.TLV(PFCP_SESSION_RETENTION_INFORMATION_WITHIN_PFCP_ASSOCIATION_SETUP_REQUEST_TYPE, fields...)
 }
@@ -26,9 +27,9 @@ func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) Unmar
 	for _, de := range elements {
 		switch de.Type {
 		case CP_PFCP_ENTITY_IP_ADDRESS_TYPE:
-			t.CPPFCPEntityIPAddress = de.Value
+			t.CPPFCPEntityIPAddress = append(t.CPPFCPEntityIPAddress, de.Value)
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

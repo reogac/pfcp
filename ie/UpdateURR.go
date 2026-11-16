@@ -29,17 +29,18 @@ type UpdateURR struct {
 	SubsequentEventThreshold            []byte                  //Subsequent Event Threshold
 	SubsequentEventQuota                []byte                  //Subsequent Event Quota
 	InactivityDetectionTime             []byte                  //Inactivity Detection Time
-	LinkedURRID                         []byte                  //Linked URR ID
+	LinkedURRID                         [][]byte                //Linked URR ID
 	MeasurementInformation              *MeasurementInformation //Measurement Information
 	TimeQuotaMechanism                  []byte                  //Time Quota Mechanism
-	AggregatedURRs                      []byte                  //Aggregated URRs
+	AggregatedURRs                      [][]byte                //Aggregated URRs
 	FARIDforQuotaAction                 *uint32                 //FAR ID
 	EthernetInactivityTimer             []byte                  //Ethernet Inactivity Timer
 	AdditionalMonitoringTime            []byte                  //Additional Monitoring Time
 	NumberofReports                     []byte                  //Number of Reports
-	ExemptedApplicationIDforQuotaAction *ApplicationID          //Application ID
+	ExemptedApplicationIDforQuotaAction []ApplicationID         //Application ID
 	ExemptedSDFFilterforQuotaAction     []SDFFilter             //SDF Filter
 	UserPlaneInactivityTimer            []byte                  //User Plane Inactivity Timer
+	Unknown                             []uint32                `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *UpdateURR) Field() tlv.Field {
@@ -49,7 +50,7 @@ func (t *UpdateURR) Field() tlv.Field {
 		fields = append(fields, tlv.TLVFrom(MEASUREMENT_METHOD_TYPE, tlv.Bytes(t.MeasurementMethod.Bytes())))
 	}
 	if t.ReportingTriggers != nil {
-		fields = append(fields, tlv.TLVFrom(REPORTING_TRIGGERS_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.ReportingTriggers))))
+		fields = append(fields, tlv.TLVFrom(REPORTING_TRIGGERS_TYPE, tlv.Bytes(pfcp.Marshal3Bytes(*t.ReportingTriggers))))
 	}
 	if t.MeasurementPeriod != nil {
 		fields = append(fields, tlv.TLVFrom(MEASUREMENT_PERIOD_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.MeasurementPeriod))))
@@ -105,8 +106,8 @@ func (t *UpdateURR) Field() tlv.Field {
 	if len(t.InactivityDetectionTime) > 0 {
 		fields = append(fields, tlv.TLVFrom(INACTIVITY_DETECTION_TIME_TYPE, tlv.Bytes(t.InactivityDetectionTime)))
 	}
-	if len(t.LinkedURRID) > 0 {
-		fields = append(fields, tlv.TLVFrom(LINKED_URR_ID_TYPE, tlv.Bytes(t.LinkedURRID)))
+	for _, ie := range t.LinkedURRID {
+		fields = append(fields, tlv.TLVFrom(LINKED_URR_ID_TYPE, tlv.Bytes(ie)))
 	}
 	if t.MeasurementInformation != nil {
 		fields = append(fields, tlv.TLVFrom(MEASUREMENT_INFORMATION_TYPE, tlv.Bytes(t.MeasurementInformation.Bytes())))
@@ -114,8 +115,8 @@ func (t *UpdateURR) Field() tlv.Field {
 	if len(t.TimeQuotaMechanism) > 0 {
 		fields = append(fields, tlv.TLVFrom(TIME_QUOTA_MECHANISM_TYPE, tlv.Bytes(t.TimeQuotaMechanism)))
 	}
-	if len(t.AggregatedURRs) > 0 {
-		fields = append(fields, tlv.TLVFrom(AGGREGATED_URRS_TYPE, tlv.Bytes(t.AggregatedURRs)))
+	for _, ie := range t.AggregatedURRs {
+		fields = append(fields, tlv.TLVFrom(AGGREGATED_URRS_TYPE, tlv.Bytes(ie)))
 	}
 	if t.FARIDforQuotaAction != nil {
 		fields = append(fields, tlv.TLVFrom(FAR_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.FARIDforQuotaAction))))
@@ -129,8 +130,8 @@ func (t *UpdateURR) Field() tlv.Field {
 	if len(t.NumberofReports) > 0 {
 		fields = append(fields, tlv.TLVFrom(NUMBER_OF_REPORTS_TYPE, tlv.Bytes(t.NumberofReports)))
 	}
-	if t.ExemptedApplicationIDforQuotaAction != nil {
-		fields = append(fields, tlv.TLVFrom(APPLICATION_ID_TYPE, tlv.Bytes(t.ExemptedApplicationIDforQuotaAction.Bytes())))
+	for _, ie := range t.ExemptedApplicationIDforQuotaAction {
+		fields = append(fields, tlv.TLVFrom(APPLICATION_ID_TYPE, tlv.Bytes(ie.Bytes())))
 	}
 	for _, ie := range t.ExemptedSDFFilterforQuotaAction {
 		fields = append(fields, tlv.TLVFrom(SDF_FILTER_TYPE, tlv.Bytes(ie.Bytes())))
@@ -147,109 +148,218 @@ func (t *UpdateURR) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [28]bool
 	for _, de := range elements {
 		switch de.Type {
 		case URR_ID_TYPE:
-			err = pfcp.UnmarshalUint32(de.Value, &t.URRID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &t.URRID)
 		case MEASUREMENT_METHOD_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v MeasurementMethod
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MeasurementMethod = &v
 			}
 		case REPORTING_TRIGGERS_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 2, 3, &v); err == nil {
 				t.ReportingTriggers = &v
 			}
 		case MEASUREMENT_PERIOD_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.MeasurementPeriod = &v
 			}
 		case VOLUME_THRESHOLD_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			var v VolumeThreshold
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.VolumeThreshold = &v
 			}
 		case VOLUME_QUOTA_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			var v VolumeQuota
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.VolumeQuota = &v
 			}
 		case TIME_THRESHOLD_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.TimeThreshold = &v
 			}
 		case TIME_QUOTA_TYPE:
+			if seen[7] {
+				continue
+			}
+			seen[7] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.TimeQuota = &v
 			}
 		case EVENT_THRESHOLD_TYPE:
+			if seen[8] {
+				continue
+			}
+			seen[8] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.EventThreshold = &v
 			}
 		case EVENT_QUOTA_TYPE:
+			if seen[9] {
+				continue
+			}
+			seen[9] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.EventQuota = &v
 			}
 		case QUOTA_HOLDING_TIME_TYPE:
+			if seen[10] {
+				continue
+			}
+			seen[10] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.QuotaHoldingTime = &v
 			}
 		case DROPPED_DL_TRAFFIC_THRESHOLD_TYPE:
+			if seen[11] {
+				continue
+			}
+			seen[11] = true
 			t.DroppedDLTrafficThreshold = de.Value
 		case QUOTA_VALIDITY_TIME_TYPE:
+			if seen[12] {
+				continue
+			}
+			seen[12] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.QuotaValidityTime = &v
 			}
 		case MONITORING_TIME_TYPE:
+			if seen[13] {
+				continue
+			}
+			seen[13] = true
 			t.MonitoringTime = de.Value
 		case SUBSEQUENT_VOLUME_THRESHOLD_TYPE:
+			if seen[14] {
+				continue
+			}
+			seen[14] = true
 			t.SubsequentVolumeThreshold = de.Value
 		case SUBSEQUENT_TIME_THRESHOLD_TYPE:
+			if seen[15] {
+				continue
+			}
+			seen[15] = true
 			t.SubsequentTimeThreshold = de.Value
 		case SUBSEQUENT_VOLUME_QUOTA_TYPE:
+			if seen[16] {
+				continue
+			}
+			seen[16] = true
 			t.SubsequentVolumeQuota = de.Value
 		case SUBSEQUENT_TIME_QUOTA_TYPE:
+			if seen[17] {
+				continue
+			}
+			seen[17] = true
 			t.SubsequentTimeQuota = de.Value
 		case SUBSEQUENT_EVENT_THRESHOLD_TYPE:
+			if seen[18] {
+				continue
+			}
+			seen[18] = true
 			t.SubsequentEventThreshold = de.Value
 		case SUBSEQUENT_EVENT_QUOTA_TYPE:
+			if seen[19] {
+				continue
+			}
+			seen[19] = true
 			t.SubsequentEventQuota = de.Value
 		case INACTIVITY_DETECTION_TIME_TYPE:
+			if seen[20] {
+				continue
+			}
+			seen[20] = true
 			t.InactivityDetectionTime = de.Value
 		case LINKED_URR_ID_TYPE:
-			t.LinkedURRID = de.Value
+			t.LinkedURRID = append(t.LinkedURRID, de.Value)
 		case MEASUREMENT_INFORMATION_TYPE:
+			if seen[21] {
+				continue
+			}
+			seen[21] = true
 			var v MeasurementInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.MeasurementInformation = &v
 			}
 		case TIME_QUOTA_MECHANISM_TYPE:
+			if seen[22] {
+				continue
+			}
+			seen[22] = true
 			t.TimeQuotaMechanism = de.Value
 		case AGGREGATED_URRS_TYPE:
-			t.AggregatedURRs = de.Value
+			t.AggregatedURRs = append(t.AggregatedURRs, de.Value)
 		case FAR_ID_TYPE:
+			if seen[23] {
+				continue
+			}
+			seen[23] = true
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.FARIDforQuotaAction = &v
 			}
 		case ETHERNET_INACTIVITY_TIMER_TYPE:
+			if seen[24] {
+				continue
+			}
+			seen[24] = true
 			t.EthernetInactivityTimer = de.Value
 		case ADDITIONAL_MONITORING_TIME_TYPE:
+			if seen[25] {
+				continue
+			}
+			seen[25] = true
 			t.AdditionalMonitoringTime = de.Value
 		case NUMBER_OF_REPORTS_TYPE:
+			if seen[26] {
+				continue
+			}
+			seen[26] = true
 			t.NumberofReports = de.Value
 		case APPLICATION_ID_TYPE:
 			var v ApplicationID
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.ExemptedApplicationIDforQuotaAction = &v
+				t.ExemptedApplicationIDforQuotaAction = append(t.ExemptedApplicationIDforQuotaAction, v)
 			}
 		case SDF_FILTER_TYPE:
 			var v SDFFilter
@@ -257,13 +367,20 @@ func (t *UpdateURR) UnmarshalBinary(buf []byte) (err error) {
 				t.ExemptedSDFFilterforQuotaAction = append(t.ExemptedSDFFilterforQuotaAction, v)
 			}
 		case USER_PLANE_INACTIVITY_TIMER_TYPE:
+			if seen[27] {
+				continue
+			}
+			seen[27] = true
 			t.UserPlaneInactivityTimer = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: URR_ID_TYPE}
 	}
 	return
 }

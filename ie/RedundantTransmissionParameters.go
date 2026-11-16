@@ -1,16 +1,21 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Redundant Transmission Parameters' data structure */
 type RedundantTransmissionParameters struct {
-	NetworkInstanceforRedundantTransmission []byte //Network Instance
+	LocalFTEIDforRedundantTransmission      FTEID    //F-TEID
+	NetworkInstanceforRedundantTransmission []byte   //Network Instance
+	Unknown                                 []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *RedundantTransmissionParameters) Field() tlv.Field {
 	fields := []tlv.Field{}
+	fields = append(fields, tlv.TLVFrom(F_TEID_TYPE, tlv.Bytes(t.LocalFTEIDforRedundantTransmission.Bytes())))
 	if len(t.NetworkInstanceforRedundantTransmission) > 0 {
 		fields = append(fields, tlv.TLVFrom(NETWORK_INSTANCE_TYPE, tlv.Bytes(t.NetworkInstanceforRedundantTransmission)))
 	}
@@ -23,16 +28,31 @@ func (t *RedundantTransmissionParameters) UnmarshalBinary(buf []byte) (err error
 	if err != nil {
 		return
 	}
+	var seen [2]bool
 	for _, de := range elements {
 		switch de.Type {
+		case F_TEID_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.LocalFTEIDforRedundantTransmission); err == nil {
+			}
 		case NETWORK_INSTANCE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.NetworkInstanceforRedundantTransmission = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: F_TEID_TYPE}
 	}
 	return
 }

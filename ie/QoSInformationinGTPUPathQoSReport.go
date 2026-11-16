@@ -1,15 +1,18 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'QoS Information in GTP-U Path QoS Report' data structure */
 type QoSInformationinGTPUPathQoSReport struct {
-	AveragePacketDelay []byte //Average Packet Delay
-	MinimumPacketDelay []byte //Minimum Packet Delay
-	MaximumPacketDelay []byte //Maximum Packet Delay
-	DSCP               []byte //Transport Level Marking
+	AveragePacketDelay []byte   //Average Packet Delay
+	MinimumPacketDelay []byte   //Minimum Packet Delay
+	MaximumPacketDelay []byte   //Maximum Packet Delay
+	DSCP               []byte   //Transport Level Marking
+	Unknown            []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *QoSInformationinGTPUPathQoSReport) Field() tlv.Field {
@@ -33,22 +36,42 @@ func (t *QoSInformationinGTPUPathQoSReport) UnmarshalBinary(buf []byte) (err err
 	if err != nil {
 		return
 	}
+	var seen [4]bool
 	for _, de := range elements {
 		switch de.Type {
 		case AVERAGE_PACKET_DELAY_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.AveragePacketDelay = de.Value
 		case MINIMUM_PACKET_DELAY_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.MinimumPacketDelay = de.Value
 		case MAXIMUM_PACKET_DELAY_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.MaximumPacketDelay = de.Value
 		case TRANSPORT_LEVEL_MARKING_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.DSCP = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: AVERAGE_PACKET_DELAY_TYPE}
 	}
 	return
 }

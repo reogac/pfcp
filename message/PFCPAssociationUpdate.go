@@ -9,19 +9,20 @@ import (
 
 /* 'PFCP Association Update Request' data structure */
 type PFCPAssociationUpdateRequest struct {
-	NodeID                         ie.NodeID                        //Node ID
-	UPFunctionFeatures             []byte                           //UP Function Features
-	CPFunctionFeatures             *uint8                           //CP Function Features
-	UserPlaneIPResourceInformation []byte                           //User Plane IP Resource Information
-	PFCPAssociationReleaseRequest  []byte                           //PFCP Association Release Request
-	GracefulReleasePeriod          []byte                           //Graceful Release Period
-	PFCPAUReqFlags                 *uint8                           //PFCPAUReq-Flags
-	AlternativeSMFIPAddress        []byte                           //Alternative SMF IP Address
-	SMFSetID                       []byte                           //SMF Set ID
-	ClockDriftControlInformation   *ie.ClockDriftControlInformation //Clock Drift Control Information
-	UEIPaddressPoolInformation     *ie.UEIPAddress                  //UE IP Address
-	GTPUPathQoSControlInformation  []byte                           //GTP-U Path QoS Control Information
-	UEIPAddressUsageInformation    *ie.UEIPAddressUsageInformation  //UE IP Address Usage Information
+	NodeID                         ie.NodeID                         //Node ID
+	UPFunctionFeatures             []byte                            //UP Function Features
+	CPFunctionFeatures             *uint8                            //CP Function Features
+	UserPlaneIPResourceInformation [][]byte                          //User Plane IP Resource Information
+	PFCPAssociationReleaseRequest  []byte                            //PFCP Association Release Request
+	GracefulReleasePeriod          []byte                            //Graceful Release Period
+	PFCPAUReqFlags                 *uint8                            //PFCPAUReq-Flags
+	AlternativeSMFIPAddress        [][]byte                          //Alternative SMF IP Address
+	SMFSetID                       []byte                            //SMF Set ID
+	ClockDriftControlInformation   []ie.ClockDriftControlInformation //Clock Drift Control Information
+	UEIPaddressPoolInformation     []ie.UEIPAddress                  //UE IP Address
+	GTPUPathQoSControlInformation  [][]byte                          //GTP-U Path QoS Control Information
+	UEIPAddressUsageInformation    []ie.UEIPAddressUsageInformation  //UE IP Address Usage Information
+	Unknown                        []uint32                          `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPAssociationUpdateRequest) Field() tlv.Field {
@@ -33,8 +34,8 @@ func (t *PFCPAssociationUpdateRequest) Field() tlv.Field {
 	if t.CPFunctionFeatures != nil {
 		fields = append(fields, tlv.TLVFrom(ie.CP_FUNCTION_FEATURES_TYPE, tlv.Bytes(pfcp.MarshalUint8(*t.CPFunctionFeatures))))
 	}
-	if len(t.UserPlaneIPResourceInformation) > 0 {
-		fields = append(fields, tlv.TLVFrom(ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE, tlv.Bytes(t.UserPlaneIPResourceInformation)))
+	for _, i := range t.UserPlaneIPResourceInformation {
+		fields = append(fields, tlv.TLVFrom(ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE, tlv.Bytes(i)))
 	}
 	if len(t.PFCPAssociationReleaseRequest) > 0 {
 		fields = append(fields, tlv.TLVFrom(ie.PFCP_ASSOCIATION_RELEASE_REQUEST_TYPE, tlv.Bytes(t.PFCPAssociationReleaseRequest)))
@@ -45,23 +46,23 @@ func (t *PFCPAssociationUpdateRequest) Field() tlv.Field {
 	if t.PFCPAUReqFlags != nil {
 		fields = append(fields, tlv.TLVFrom(ie.PFCPAUREQ_FLAGS_TYPE, tlv.Bytes(pfcp.MarshalUint8(*t.PFCPAUReqFlags))))
 	}
-	if len(t.AlternativeSMFIPAddress) > 0 {
-		fields = append(fields, tlv.TLVFrom(ie.ALTERNATIVE_SMF_IP_ADDRESS_TYPE, tlv.Bytes(t.AlternativeSMFIPAddress)))
+	for _, i := range t.AlternativeSMFIPAddress {
+		fields = append(fields, tlv.TLVFrom(ie.ALTERNATIVE_SMF_IP_ADDRESS_TYPE, tlv.Bytes(i)))
 	}
 	if len(t.SMFSetID) > 0 {
 		fields = append(fields, tlv.TLVFrom(ie.SMF_SET_ID_TYPE, tlv.Bytes(t.SMFSetID)))
 	}
-	if t.ClockDriftControlInformation != nil {
-		fields = append(fields, t.ClockDriftControlInformation.Field())
+	for _, i := range t.ClockDriftControlInformation {
+		fields = append(fields, i.Field())
 	}
-	if t.UEIPaddressPoolInformation != nil {
-		fields = append(fields, tlv.TLVFrom(ie.UE_IP_ADDRESS_TYPE, tlv.Bytes(t.UEIPaddressPoolInformation.Bytes())))
+	for _, i := range t.UEIPaddressPoolInformation {
+		fields = append(fields, tlv.TLVFrom(ie.UE_IP_ADDRESS_TYPE, tlv.Bytes(i.Bytes())))
 	}
-	if len(t.GTPUPathQoSControlInformation) > 0 {
-		fields = append(fields, tlv.TLVFrom(ie.GTP_U_PATH_QOS_CONTROL_INFORMATION_TYPE, tlv.Bytes(t.GTPUPathQoSControlInformation)))
+	for _, i := range t.GTPUPathQoSControlInformation {
+		fields = append(fields, tlv.TLVFrom(ie.GTP_U_PATH_QOS_CONTROL_INFORMATION_TYPE, tlv.Bytes(i)))
 	}
-	if t.UEIPAddressUsageInformation != nil {
-		fields = append(fields, t.UEIPAddressUsageInformation.Field())
+	for _, i := range t.UEIPAddressUsageInformation {
+		fields = append(fields, i.Field())
 	}
 	return tlv.TLV(ie.MSG_PFCP_ASSOCIATION_UPDATE_REQUEST_TYPE, fields...)
 }
@@ -72,55 +73,90 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [7]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		case ie.UP_FUNCTION_FEATURES_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.UPFunctionFeatures = de.Value
 		case ie.CP_FUNCTION_FEATURES_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.CPFunctionFeatures = &v
 			}
 		case ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE:
-			t.UserPlaneIPResourceInformation = de.Value
+			t.UserPlaneIPResourceInformation = append(t.UserPlaneIPResourceInformation, de.Value)
 		case ie.PFCP_ASSOCIATION_RELEASE_REQUEST_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.PFCPAssociationReleaseRequest = de.Value
 		case ie.GRACEFUL_RELEASE_PERIOD_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			t.GracefulReleasePeriod = de.Value
 		case ie.PFCPAUREQ_FLAGS_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.PFCPAUReqFlags = &v
 			}
 		case ie.ALTERNATIVE_SMF_IP_ADDRESS_TYPE:
-			t.AlternativeSMFIPAddress = de.Value
+			t.AlternativeSMFIPAddress = append(t.AlternativeSMFIPAddress, de.Value)
 		case ie.SMF_SET_ID_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			t.SMFSetID = de.Value
 		case ie.CLOCK_DRIFT_CONTROL_INFORMATION_TYPE:
 			var v ie.ClockDriftControlInformation
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.ClockDriftControlInformation = &v
+				t.ClockDriftControlInformation = append(t.ClockDriftControlInformation, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.UE_IP_ADDRESS_TYPE:
 			var v ie.UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.UEIPaddressPoolInformation = &v
+				t.UEIPaddressPoolInformation = append(t.UEIPaddressPoolInformation, v)
 			}
 		case ie.GTP_U_PATH_QOS_CONTROL_INFORMATION_TYPE:
-			t.GTPUPathQoSControlInformation = de.Value
+			t.GTPUPathQoSControlInformation = append(t.GTPUPathQoSControlInformation, de.Value)
 		case ie.UE_IP_ADDRESS_USAGE_INFORMATION_TYPE:
 			var v ie.UEIPAddressUsageInformation
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.UEIPAddressUsageInformation = &v
+				t.UEIPAddressUsageInformation = append(t.UEIPAddressUsageInformation, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
 	}
 	return
 }
@@ -148,12 +184,13 @@ func (t *PFCPAssociationUpdateRequest) UnmarshalJSON(buf []byte) (err error) {
 
 /* 'PFCP Association Update Response' data structure */
 type PFCPAssociationUpdateResponse struct {
-	NodeID                         ie.NodeID                       //Node ID
-	Cause                          uint8                           //Cause
-	UPFunctionFeatures             []byte                          //UP Function Features
-	CPFunctionFeatures             *uint8                          //CP Function Features
-	UserPlaneIPResourceInformation []byte                          //User Plane IP Resource Information
-	UEIPAddressUsageInformation    *ie.UEIPAddressUsageInformation //UE IP Address Usage Information
+	NodeID                         ie.NodeID                        //Node ID
+	Cause                          uint8                            //Cause
+	UPFunctionFeatures             []byte                           //UP Function Features
+	CPFunctionFeatures             *uint8                           //CP Function Features
+	UserPlaneIPResourceInformation [][]byte                         //User Plane IP Resource Information
+	UEIPAddressUsageInformation    []ie.UEIPAddressUsageInformation //UE IP Address Usage Information
+	Unknown                        []uint32                         `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPAssociationUpdateResponse) Field() tlv.Field {
@@ -166,11 +203,11 @@ func (t *PFCPAssociationUpdateResponse) Field() tlv.Field {
 	if t.CPFunctionFeatures != nil {
 		fields = append(fields, tlv.TLVFrom(ie.CP_FUNCTION_FEATURES_TYPE, tlv.Bytes(pfcp.MarshalUint8(*t.CPFunctionFeatures))))
 	}
-	if len(t.UserPlaneIPResourceInformation) > 0 {
-		fields = append(fields, tlv.TLVFrom(ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE, tlv.Bytes(t.UserPlaneIPResourceInformation)))
+	for _, i := range t.UserPlaneIPResourceInformation {
+		fields = append(fields, tlv.TLVFrom(ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE, tlv.Bytes(i)))
 	}
-	if t.UEIPAddressUsageInformation != nil {
-		fields = append(fields, t.UEIPAddressUsageInformation.Field())
+	for _, i := range t.UEIPAddressUsageInformation {
+		fields = append(fields, i.Field())
 	}
 	return tlv.TLV(ie.MSG_PFCP_ASSOCIATION_UPDATE_RESPONSE_TYPE, fields...)
 }
@@ -181,31 +218,58 @@ func (t *PFCPAssociationUpdateResponse) UnmarshalBinary(buf []byte) (err error) 
 	if err != nil {
 		return
 	}
+	var seen [4]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		case ie.CAUSE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		case ie.UP_FUNCTION_FEATURES_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.UPFunctionFeatures = de.Value
 		case ie.CP_FUNCTION_FEATURES_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			var v uint8
-			if err = pfcp.UnmarshalUint8(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.CPFunctionFeatures = &v
 			}
 		case ie.USER_PLANE_IP_RESOURCE_INFORMATION_TYPE:
-			t.UserPlaneIPResourceInformation = de.Value
+			t.UserPlaneIPResourceInformation = append(t.UserPlaneIPResourceInformation, de.Value)
 		case ie.UE_IP_ADDRESS_USAGE_INFORMATION_TYPE:
 			var v ie.UEIPAddressUsageInformation
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.UEIPAddressUsageInformation = &v
+				t.UEIPAddressUsageInformation = append(t.UEIPAddressUsageInformation, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
+		}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: ie.CAUSE_TYPE}
+	}
+	if t.Cause < ie.CauseRequestRejected {
+		if !seen[0] {
+			return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
 		}
 	}
 	return

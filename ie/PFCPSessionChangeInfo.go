@@ -1,27 +1,30 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'PFCP Session Change Info' data structure */
 type PFCPSessionChangeInfo struct {
-	PGWCSMFFQCSID               *FQCSID //FQ-CSID
-	GroupId                     []byte  //Group ID
-	CPIPAddress                 []byte  //CP IP Address
-	AlternativeSMFPGWCIPAddress []byte  //Alternative SMF IP Address
+	PGWCSMFFQCSID               []FQCSID //FQ-CSID
+	GroupId                     [][]byte //Group ID
+	CPIPAddress                 [][]byte //CP IP Address
+	AlternativeSMFPGWCIPAddress []byte   //Alternative SMF IP Address
+	Unknown                     []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPSessionChangeInfo) Field() tlv.Field {
 	fields := []tlv.Field{}
-	if t.PGWCSMFFQCSID != nil {
-		fields = append(fields, tlv.TLVFrom(FQ_CSID_TYPE, tlv.Bytes(t.PGWCSMFFQCSID.Bytes())))
+	for _, ie := range t.PGWCSMFFQCSID {
+		fields = append(fields, tlv.TLVFrom(FQ_CSID_TYPE, tlv.Bytes(ie.Bytes())))
 	}
-	if len(t.GroupId) > 0 {
-		fields = append(fields, tlv.TLVFrom(GROUP_ID_TYPE, tlv.Bytes(t.GroupId)))
+	for _, ie := range t.GroupId {
+		fields = append(fields, tlv.TLVFrom(GROUP_ID_TYPE, tlv.Bytes(ie)))
 	}
-	if len(t.CPIPAddress) > 0 {
-		fields = append(fields, tlv.TLVFrom(CP_IP_ADDRESS_TYPE, tlv.Bytes(t.CPIPAddress)))
+	for _, ie := range t.CPIPAddress {
+		fields = append(fields, tlv.TLVFrom(CP_IP_ADDRESS_TYPE, tlv.Bytes(ie)))
 	}
 	fields = append(fields, tlv.TLVFrom(ALTERNATIVE_SMF_IP_ADDRESS_TYPE, tlv.Bytes(t.AlternativeSMFPGWCIPAddress)))
 	return tlv.TLV(PFCP_SESSION_CHANGE_INFO_TYPE, fields...)
@@ -33,25 +36,33 @@ func (t *PFCPSessionChangeInfo) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case FQ_CSID_TYPE:
 			var v FQCSID
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.PGWCSMFFQCSID = &v
+				t.PGWCSMFFQCSID = append(t.PGWCSMFFQCSID, v)
 			}
 		case GROUP_ID_TYPE:
-			t.GroupId = de.Value
+			t.GroupId = append(t.GroupId, de.Value)
 		case CP_IP_ADDRESS_TYPE:
-			t.CPIPAddress = de.Value
+			t.CPIPAddress = append(t.CPIPAddress, de.Value)
 		case ALTERNATIVE_SMF_IP_ADDRESS_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.AlternativeSMFPGWCIPAddress = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ALTERNATIVE_SMF_IP_ADDRESS_TYPE}
 	}
 	return
 }

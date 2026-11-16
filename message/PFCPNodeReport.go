@@ -9,14 +9,15 @@ import (
 
 /* 'PFCP Node Report Request' data structure */
 type PFCPNodeReportRequest struct {
-	NodeID                       ie.NodeID                                  //Node ID
-	NodeReportType               []byte                                     //Node Report Type
-	VendorSpecificNodeReportType []byte                                     //Vendor-Specific Node Report Type
-	UserPlanePathFailureReport   *ie.UserPlanePathFailureReport             //User Plane Path Failure Report
-	UserPlanePathRecoveryReport  *ie.UserPlanePathRecoveryReport            //User Plane Path Recovery Report
-	ClockDriftReport             *ie.ClockDriftReport                       //Clock Drift Report
-	GTPUPathQoSReport            *ie.GTPUPathQoSReportPFCPNodeReportRequest //GTP-U Path QoS Report PFCP Node Report Request
-	PeerUPRestartReport          []byte                                     //Peer UP Restart Report
+	NodeID                       ie.NodeID                                   //Node ID
+	NodeReportType               []byte                                      //Node Report Type
+	VendorSpecificNodeReportType []byte                                      //Vendor-Specific Node Report Type
+	UserPlanePathFailureReport   *ie.UserPlanePathFailureReport              //User Plane Path Failure Report
+	UserPlanePathRecoveryReport  *ie.UserPlanePathRecoveryReport             //User Plane Path Recovery Report
+	ClockDriftReport             []ie.ClockDriftReport                       //Clock Drift Report
+	GTPUPathQoSReport            []ie.GTPUPathQoSReportPFCPNodeReportRequest //GTP-U Path QoS Report PFCP Node Report Request
+	PeerUPRestartReport          []byte                                      //Peer UP Restart Report
+	Unknown                      []uint32                                    `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPNodeReportRequest) Field() tlv.Field {
@@ -32,11 +33,11 @@ func (t *PFCPNodeReportRequest) Field() tlv.Field {
 	if t.UserPlanePathRecoveryReport != nil {
 		fields = append(fields, t.UserPlanePathRecoveryReport.Field())
 	}
-	if t.ClockDriftReport != nil {
-		fields = append(fields, t.ClockDriftReport.Field())
+	for _, i := range t.ClockDriftReport {
+		fields = append(fields, i.Field())
 	}
-	if t.GTPUPathQoSReport != nil {
-		fields = append(fields, t.GTPUPathQoSReport.Field())
+	for _, i := range t.GTPUPathQoSReport {
+		fields = append(fields, i.Field())
 	}
 	if len(t.PeerUPRestartReport) > 0 {
 		fields = append(fields, tlv.TLVFrom(ie.PEER_UP_RESTART_REPORT_TYPE, tlv.Bytes(t.PeerUPRestartReport)))
@@ -50,42 +51,78 @@ func (t *PFCPNodeReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [6]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		case ie.NODE_REPORT_TYPE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.NodeReportType = de.Value
 		case ie.VENDOR_SPECIFIC_NODE_REPORT_TYPE_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.VendorSpecificNodeReportType = de.Value
 		case ie.USER_PLANE_PATH_FAILURE_REPORT_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			var v ie.UserPlanePathFailureReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UserPlanePathFailureReport = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.USER_PLANE_PATH_RECOVERY_REPORT_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			var v ie.UserPlanePathRecoveryReport
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UserPlanePathRecoveryReport = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.CLOCK_DRIFT_REPORT_TYPE:
 			var v ie.ClockDriftReport
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.ClockDriftReport = &v
+				t.ClockDriftReport = append(t.ClockDriftReport, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.GTP_U_PATH_QOS_REPORT_PFCP_NODE_REPORT_REQUEST_TYPE:
 			var v ie.GTPUPathQoSReportPFCPNodeReportRequest
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.GTPUPathQoSReport = &v
+				t.GTPUPathQoSReport = append(t.GTPUPathQoSReport, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.PEER_UP_RESTART_REPORT_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			t.PeerUPRestartReport = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: ie.NODE_REPORT_TYPE_TYPE}
 	}
 	return
 }
@@ -116,6 +153,7 @@ type PFCPNodeReportResponse struct {
 	NodeID      ie.NodeID //Node ID
 	Cause       uint8     //Cause
 	OffendingIE *uint16   //Offending IE
+	Unknown     []uint32  `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPNodeReportResponse) Field() tlv.Field {
@@ -134,22 +172,44 @@ func (t *PFCPNodeReportResponse) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [3]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.NODE_ID_TYPE:
-			err = de.UnmarshalValue(&t.NodeID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			if err = de.UnmarshalValue(&t.NodeID); err == nil {
+			}
 		case ie.CAUSE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		case ie.OFFENDING_IE_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v uint16
 			if err = pfcp.UnmarshalUint16(de.Value, &v); err == nil {
 				t.OffendingIE = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
+		}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: ie.CAUSE_TYPE}
+	}
+	if t.Cause < ie.CauseRequestRejected {
+		if !seen[0] {
+			return &pfcp.MissingIE{Type: ie.NODE_ID_TYPE}
 		}
 	}
 	return

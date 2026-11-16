@@ -13,6 +13,7 @@ type EthernetPacketFilter struct {
 	CTAG                     []byte      //C-TAG
 	STAG                     []byte      //S-TAG
 	SDFFilter                []SDFFilter //SDF Filter
+	Unknown                  []uint32    `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *EthernetPacketFilter) Field() tlv.Field {
@@ -47,19 +48,44 @@ func (t *EthernetPacketFilter) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [6]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ETHERNET_FILTER_ID_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.EthernetFilterID = de.Value
 		case ETHERNET_FILTER_PROPERTIES_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.EthernetFilterProperties = de.Value
 		case MAC_ADDRESS_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.MACaddress = de.Value
 		case ETHERTYPE_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.Ethertype = de.Value
 		case C_TAG_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			t.CTAG = de.Value
 		case S_TAG_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			t.STAG = de.Value
 		case SDF_FILTER_TYPE:
 			var v SDFFilter
@@ -67,7 +93,7 @@ func (t *EthernetPacketFilter) UnmarshalBinary(buf []byte) (err error) {
 				t.SDFFilter = append(t.SDFFilter, v)
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return

@@ -8,7 +8,8 @@ import (
 
 /* 'Remove PDR' data structure */
 type RemovePDR struct {
-	PDRID uint16 //PDR ID
+	PDRID   uint16   //PDR ID
+	Unknown []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *RemovePDR) Field() tlv.Field {
@@ -23,16 +24,24 @@ func (t *RemovePDR) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case PDR_ID_TYPE:
-			err = pfcp.UnmarshalUint16(de.Value, &t.PDRID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 2, 2, &t.PDRID)
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: PDR_ID_TYPE}
 	}
 	return
 }

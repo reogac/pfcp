@@ -9,14 +9,15 @@ import (
 
 /* 'PFCP PFD Management Request' data structure */
 type PFCPPFDManagementRequest struct {
-	ApplicationIDsPFDs *ie.ApplicationIDsPFDs //Application ID's PFDs
-	NodeID             *ie.NodeID             //Node ID
+	ApplicationIDsPFDs []ie.ApplicationIDsPFDs //Application ID's PFDs
+	NodeID             *ie.NodeID              //Node ID
+	Unknown            []uint32                `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPPFDManagementRequest) Field() tlv.Field {
 	fields := []tlv.Field{}
-	if t.ApplicationIDsPFDs != nil {
-		fields = append(fields, t.ApplicationIDsPFDs.Field())
+	for _, i := range t.ApplicationIDsPFDs {
+		fields = append(fields, i.Field())
 	}
 	if t.NodeID != nil {
 		fields = append(fields, tlv.TLVFrom(ie.NODE_ID_TYPE, tlv.Bytes(t.NodeID.Bytes())))
@@ -30,20 +31,26 @@ func (t *PFCPPFDManagementRequest) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.APPLICATION_ID_S_PFDS_TYPE:
 			var v ie.ApplicationIDsPFDs
 			if err = de.UnmarshalValue(&v); err == nil {
-				t.ApplicationIDsPFDs = &v
+				t.ApplicationIDsPFDs = append(t.ApplicationIDsPFDs, v)
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case ie.NODE_ID_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			var v ie.NodeID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.NodeID = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
@@ -78,6 +85,7 @@ type PFCPPFDManagementResponse struct {
 	Cause       uint8      //Cause
 	OffendingIE *uint16    //Offending IE
 	NodeID      *ie.NodeID //Node ID
+	Unknown     []uint32   `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *PFCPPFDManagementResponse) Field() tlv.Field {
@@ -98,26 +106,42 @@ func (t *PFCPPFDManagementResponse) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [3]bool
 	for _, de := range elements {
 		switch de.Type {
 		case ie.CAUSE_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			err = pfcp.UnmarshalUint8(de.Value, &t.Cause)
 		case ie.OFFENDING_IE_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			var v uint16
 			if err = pfcp.UnmarshalUint16(de.Value, &v); err == nil {
 				t.OffendingIE = &v
 			}
 		case ie.NODE_ID_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			var v ie.NodeID
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.NodeID = &v
 			}
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: ie.CAUSE_TYPE}
 	}
 	return
 }

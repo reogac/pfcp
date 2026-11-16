@@ -1,17 +1,22 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Ethernet Context Information' data structure */
 type EthernetContextInformation struct {
-	MACAddressesDetected []byte //MAC Addresses Detected
+	MACAddressesDetected [][]byte //MAC Addresses Detected
+	Unknown              []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *EthernetContextInformation) Field() tlv.Field {
 	fields := []tlv.Field{}
-	fields = append(fields, tlv.TLVFrom(MAC_ADDRESSES_DETECTED_TYPE, tlv.Bytes(t.MACAddressesDetected)))
+	for _, ie := range t.MACAddressesDetected {
+		fields = append(fields, tlv.TLVFrom(MAC_ADDRESSES_DETECTED_TYPE, tlv.Bytes(ie)))
+	}
 	return tlv.TLV(ETHERNET_CONTEXT_INFORMATION_TYPE, fields...)
 }
 
@@ -24,13 +29,16 @@ func (t *EthernetContextInformation) UnmarshalBinary(buf []byte) (err error) {
 	for _, de := range elements {
 		switch de.Type {
 		case MAC_ADDRESSES_DETECTED_TYPE:
-			t.MACAddressesDetected = de.Value
+			t.MACAddressesDetected = append(t.MACAddressesDetected, de.Value)
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if len(t.MACAddressesDetected) == 0 {
+		return &pfcp.MissingIE{Type: MAC_ADDRESSES_DETECTED_TYPE}
 	}
 	return
 }

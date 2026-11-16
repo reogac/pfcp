@@ -1,15 +1,18 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'Update SRR' data structure */
 type UpdateSRR struct {
-	SRRID                                     []byte //SRR ID
-	AccessAvailabilityControlInformation      []byte //Access Availability Control Information
-	QoSMonitoringperQoSflowControlInformation []byte //QoS Monitoring per QoS flow Control Information
-	DirectReportingInformation                []byte //Direct Reporting Information
+	SRRID                                     []byte   //SRR ID
+	AccessAvailabilityControlInformation      []byte   //Access Availability Control Information
+	QoSMonitoringperQoSflowControlInformation [][]byte //QoS Monitoring per QoS flow Control Information
+	DirectReportingInformation                []byte   //Direct Reporting Information
+	Unknown                                   []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *UpdateSRR) Field() tlv.Field {
@@ -18,8 +21,8 @@ func (t *UpdateSRR) Field() tlv.Field {
 	if len(t.AccessAvailabilityControlInformation) > 0 {
 		fields = append(fields, tlv.TLVFrom(ACCESS_AVAILABILITY_CONTROL_INFORMATION_TYPE, tlv.Bytes(t.AccessAvailabilityControlInformation)))
 	}
-	if len(t.QoSMonitoringperQoSflowControlInformation) > 0 {
-		fields = append(fields, tlv.TLVFrom(QOS_MONITORING_PER_QOS_FLOW_CONTROL_INFORMATION_TYPE, tlv.Bytes(t.QoSMonitoringperQoSflowControlInformation)))
+	for _, ie := range t.QoSMonitoringperQoSflowControlInformation {
+		fields = append(fields, tlv.TLVFrom(QOS_MONITORING_PER_QOS_FLOW_CONTROL_INFORMATION_TYPE, tlv.Bytes(ie)))
 	}
 	if len(t.DirectReportingInformation) > 0 {
 		fields = append(fields, tlv.TLVFrom(DIRECT_REPORTING_INFORMATION_TYPE, tlv.Bytes(t.DirectReportingInformation)))
@@ -33,22 +36,38 @@ func (t *UpdateSRR) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [3]bool
 	for _, de := range elements {
 		switch de.Type {
 		case SRR_ID_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.SRRID = de.Value
 		case ACCESS_AVAILABILITY_CONTROL_INFORMATION_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.AccessAvailabilityControlInformation = de.Value
 		case QOS_MONITORING_PER_QOS_FLOW_CONTROL_INFORMATION_TYPE:
-			t.QoSMonitoringperQoSflowControlInformation = de.Value
+			t.QoSMonitoringperQoSflowControlInformation = append(t.QoSMonitoringperQoSflowControlInformation, de.Value)
 		case DIRECT_REPORTING_INFORMATION_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.DirectReportingInformation = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: SRR_ID_TYPE}
 	}
 	return
 }

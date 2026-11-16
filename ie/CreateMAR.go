@@ -1,6 +1,8 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
@@ -13,6 +15,7 @@ type CreateMAR struct {
 	NonAccessForwardingActionInformation *NonAccessForwardingActionInformation //Non-3GPP Access Forwarding Action Information
 	ThresholdValues                      []byte                                //Thresholds
 	SteeringModeIndicator                []byte                                //Steering Mode Indicator
+	Unknown                              []uint32                              `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *CreateMAR) Field() tlv.Field {
@@ -41,34 +44,74 @@ func (t *CreateMAR) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [7]bool
 	for _, de := range elements {
 		switch de.Type {
 		case MAR_ID_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.MARID = de.Value
 		case STEERING_FUNCTIONALITY_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.SteeringFunctionality = de.Value
 		case STEERING_MODE_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.SteeringMode = de.Value
 		case _ACCESS_FORWARDING_ACTION_INFORMATION_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			var v AccessForwardingActionInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.AccessForwardingActionInformation = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case NON__ACCESS_FORWARDING_ACTION_INFORMATION_TYPE:
+			if seen[4] {
+				continue
+			}
+			seen[4] = true
 			var v NonAccessForwardingActionInformation
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.NonAccessForwardingActionInformation = &v
+				t.Unknown = append(t.Unknown, v.Unknown...)
 			}
 		case THRESHOLDS_TYPE:
+			if seen[5] {
+				continue
+			}
+			seen[5] = true
 			t.ThresholdValues = de.Value
 		case STEERING_MODE_INDICATOR_TYPE:
+			if seen[6] {
+				continue
+			}
+			seen[6] = true
 			t.SteeringModeIndicator = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: MAR_ID_TYPE}
+	}
+	if !seen[1] {
+		return &pfcp.MissingIE{Type: STEERING_FUNCTIONALITY_TYPE}
+	}
+	if !seen[2] {
+		return &pfcp.MissingIE{Type: STEERING_MODE_TYPE}
 	}
 	return
 }

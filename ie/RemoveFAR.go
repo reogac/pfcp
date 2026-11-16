@@ -8,7 +8,8 @@ import (
 
 /* 'Remove FAR' data structure */
 type RemoveFAR struct {
-	FARID uint32 //FAR ID
+	FARID   uint32   //FAR ID
+	Unknown []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *RemoveFAR) Field() tlv.Field {
@@ -23,16 +24,24 @@ func (t *RemoveFAR) UnmarshalBinary(buf []byte) (err error) {
 	if err != nil {
 		return
 	}
+	var seen [1]bool
 	for _, de := range elements {
 		switch de.Type {
 		case FAR_ID_TYPE:
-			err = pfcp.UnmarshalUint32(de.Value, &t.FARID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &t.FARID)
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: FAR_ID_TYPE}
 	}
 	return
 }

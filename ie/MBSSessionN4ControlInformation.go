@@ -1,14 +1,17 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp"
+
 	"github.com/reogac/pfcp/tlv"
 )
 
 /* 'MBS Session N4 Control Information' data structure */
 type MBSSessionN4ControlInformation struct {
-	MBSSessionIdentifier          []byte //MBS Session Identifier
-	AreaSessionID                 []byte //Area Session ID
-	MulticastTransportInformation []byte //Multicast Transport Information
+	MBSSessionIdentifier          []byte   //MBS Session Identifier
+	AreaSessionID                 []byte   //Area Session ID
+	MulticastTransportInformation []byte   //Multicast Transport Information
+	Unknown                       []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *MBSSessionN4ControlInformation) Field() tlv.Field {
@@ -29,20 +32,36 @@ func (t *MBSSessionN4ControlInformation) UnmarshalBinary(buf []byte) (err error)
 	if err != nil {
 		return
 	}
+	var seen [3]bool
 	for _, de := range elements {
 		switch de.Type {
 		case MBS_SESSION_IDENTIFIER_TYPE:
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
 			t.MBSSessionIdentifier = de.Value
 		case AREA_SESSION_ID_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.AreaSessionID = de.Value
 		case MULTICAST_TRANSPORT_INFORMATION_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.MulticastTransportInformation = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: MBS_SESSION_IDENTIFIER_TYPE}
 	}
 	return
 }

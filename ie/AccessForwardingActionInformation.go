@@ -13,6 +13,7 @@ type AccessForwardingActionInformation struct {
 	Priority []byte   //Priority
 	URRID    []uint32 //URR ID
 	RATType  []byte   //RAT Type
+	Unknown  []uint32 `json:"-"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)
 }
 
 func (t *AccessForwardingActionInformation) Field() tlv.Field {
@@ -39,27 +40,47 @@ func (t *AccessForwardingActionInformation) UnmarshalBinary(buf []byte) (err err
 	if err != nil {
 		return
 	}
+	var seen [4]bool
 	for _, de := range elements {
 		switch de.Type {
 		case FAR_ID_TYPE:
-			err = pfcp.UnmarshalUint32(de.Value, &t.FARID)
+			if seen[0] {
+				continue
+			}
+			seen[0] = true
+			err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &t.FARID)
 		case WEIGHT_TYPE:
+			if seen[1] {
+				continue
+			}
+			seen[1] = true
 			t.Weight = de.Value
 		case PRIORITY_TYPE:
+			if seen[2] {
+				continue
+			}
+			seen[2] = true
 			t.Priority = de.Value
 		case URR_ID_TYPE:
 			var v uint32
-			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
+			if err = pfcp.UnmarshalExtendable(de.Value, 4, 4, &v); err == nil {
 				t.URRID = append(t.URRID, v)
 			}
 		case RAT_TYPE_TYPE:
+			if seen[3] {
+				continue
+			}
+			seen[3] = true
 			t.RATType = de.Value
 		default:
-			err = tlv.ErrCritical
+			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
 			return
 		}
+	}
+	if !seen[0] {
+		return &pfcp.MissingIE{Type: FAR_ID_TYPE}
 	}
 	return
 }
