@@ -1,6 +1,7 @@
 package message
 
 import (
+	"github.com/reogac/pfcp/v2"
 	"github.com/reogac/pfcp/v2/ie"
 
 	"github.com/reogac/pfcp/v2/tlv"
@@ -20,7 +21,7 @@ func (t *PFCPVersionNotSupportedResponse) UnmarshalBinary(buf []byte) (err error
 	*t = PFCPVersionNotSupportedResponse{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	for _, de := range elements {
 		switch de.Type {
@@ -28,7 +29,7 @@ func (t *PFCPVersionNotSupportedResponse) UnmarshalBinary(buf []byte) (err error
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return

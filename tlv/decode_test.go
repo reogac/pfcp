@@ -123,3 +123,13 @@ func FuzzElements(f *testing.F) {
 		}
 	})
 }
+
+// An element whose Length runs past the input is named, and is still
+// ErrIncomplete to a caller that tests for it.
+func TestALengthPastTheInputNamesItsElement(t *testing.T) {
+	_, _, err := Next([]byte{0x01, 0x02, 0, 9, 1})
+	var le *LengthError
+	if !errors.As(err, &le) || le.Type != 0x0102 || !errors.Is(err, ErrIncomplete) {
+		t.Errorf("%v", err)
+	}
+}

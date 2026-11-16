@@ -27,7 +27,7 @@ func (t *PFCPSessionSetDeletionRequest) UnmarshalBinary(buf []byte) (err error) 
 	*t = PFCPSessionSetDeletionRequest{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [1]bool
 	for _, de := range elements {
@@ -48,7 +48,7 @@ func (t *PFCPSessionSetDeletionRequest) UnmarshalBinary(buf []byte) (err error) 
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {
@@ -100,7 +100,7 @@ func (t *PFCPSessionSetDeletionResponse) UnmarshalBinary(buf []byte) (err error)
 	*t = PFCPSessionSetDeletionResponse{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [3]bool
 	for _, de := range elements {
@@ -131,7 +131,7 @@ func (t *PFCPSessionSetDeletionResponse) UnmarshalBinary(buf []byte) (err error)
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[1] {

@@ -1,6 +1,9 @@
 package tlv
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	// ErrIncomplete is input that ends inside an element, or a value shorter
@@ -18,3 +21,16 @@ var (
 	// ErrErrorField is a FieldError made with a nil error.
 	ErrErrorField = errors.New("Error(nil) field")
 )
+
+// LengthError is an element whose Length runs past the input that holds it:
+// Type is the element's. It is ErrIncomplete to errors.Is, which is what it
+// was before it named the element.
+type LengthError struct {
+	Type uint32
+}
+
+func (e *LengthError) Error() string {
+	return fmt.Sprintf("TLV type %d: its length runs past the input", e.Type)
+}
+
+func (e *LengthError) Is(target error) bool { return target == ErrIncomplete }

@@ -1,6 +1,8 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp/v2"
+
 	"github.com/reogac/pfcp/v2/tlv"
 )
 
@@ -22,7 +24,7 @@ func (t *ProvideRDSConfigurationInformation) UnmarshalBinary(buf []byte) (err er
 	*t = ProvideRDSConfigurationInformation{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [1]bool
 	for _, de := range elements {
@@ -37,7 +39,7 @@ func (t *ProvideRDSConfigurationInformation) UnmarshalBinary(buf []byte) (err er
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return

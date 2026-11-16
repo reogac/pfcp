@@ -68,7 +68,7 @@ func (t *UpdateForwardingParameters) UnmarshalBinary(buf []byte) (err error) {
 	*t = UpdateForwardingParameters{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [12]bool
 	for _, de := range elements {
@@ -158,7 +158,7 @@ func (t *UpdateForwardingParameters) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return

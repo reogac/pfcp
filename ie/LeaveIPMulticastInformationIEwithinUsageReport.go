@@ -26,7 +26,7 @@ func (t *LeaveIPMulticastInformationIEwithinUsageReport) UnmarshalBinary(buf []b
 	*t = LeaveIPMulticastInformationIEwithinUsageReport{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [1]bool
 	for _, de := range elements {
@@ -43,7 +43,7 @@ func (t *LeaveIPMulticastInformationIEwithinUsageReport) UnmarshalBinary(buf []b
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {

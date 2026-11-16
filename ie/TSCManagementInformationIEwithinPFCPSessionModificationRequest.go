@@ -1,6 +1,8 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp/v2"
+
 	"github.com/reogac/pfcp/v2/tlv"
 )
 
@@ -30,7 +32,7 @@ func (t *TSCManagementInformationIEwithinPFCPSessionModificationRequest) Unmarsh
 	*t = TSCManagementInformationIEwithinPFCPSessionModificationRequest{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [3]bool
 	for _, de := range elements {
@@ -57,7 +59,7 @@ func (t *TSCManagementInformationIEwithinPFCPSessionModificationRequest) Unmarsh
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return

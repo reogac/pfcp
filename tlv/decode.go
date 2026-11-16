@@ -36,7 +36,7 @@ func Next(b []byte) (e Element, rest []byte, err error) {
 	}
 	n := int(b[2])<<8 | int(b[3])
 	if len(b)-headerLen < n {
-		return e, b, ErrIncomplete
+		return e, b, &LengthError{Type: e.Type}
 	}
 	e.Value, rest = b[headerLen:headerLen+n], b[headerLen+n:]
 	if IsEnterprise(e.Type) {

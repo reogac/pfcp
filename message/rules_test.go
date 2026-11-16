@@ -97,3 +97,51 @@ func TestAnExtendableIEMayCarryMoreOctets(t *testing.T) {
 		t.Errorf("a Recovery Time Stamp of 5 octets: %d, %v", hb.RecoveryTimeStamp, err)
 	}
 }
+
+// 7.6.8: an IE whose value does not decode is named, the innermost one when
+// it sits inside a grouped IE, so the answer can carry it in the Offending IE.
+func TestAFaultyIEIsNamed(t *testing.T) {
+	invalid := func(err error) uint32 {
+		var e *pfcp.InvalidIE
+		if errors.As(err, &e) {
+			return e.Type
+		}
+		return 0
+	}
+	var hbr message.PFCPHeartbeatResponse
+	short := body(t, tlv.TLVFrom(ie.RECOVERY_TIME_STAMP_TYPE, tlv.Bytes([]byte{0, 1})))
+	if got := invalid(hbr.UnmarshalBinary(short)); got != ie.RECOVERY_TIME_STAMP_TYPE {
+		t.Errorf("a Recovery Time Stamp of 2 octets named %d", got)
+	}
+	var rsp message.PFCPSessionReportResponse
+	err := rsp.UnmarshalBinary(body(t, tlv.TLVFrom(ie.CAUSE_TYPE, tlv.Bytes([]byte{1})),
+		tlv.TLV(ie.UPDATE_BAR_PFCP_SESSION_REPORT_RESPONSE_TYPE, tlv.TLVFrom(ie.BAR_ID_TYPE, tlv.Bytes(nil)))))
+	if got := invalid(err); got != ie.BAR_ID_TYPE {
+		t.Errorf("an empty BAR ID inside Update BAR named %d (%v), want the BAR ID", got, err)
+	}
+}
+
+// 7.6.7: an IE whose Length runs past what holds it is an invalid length,
+// naming that IE, in a message or inside a grouped IE.
+func TestAnIELongerThanItsInputIsAnInvalidLength(t *testing.T) {
+	length := func(err error) uint32 {
+		var e *pfcp.InvalidLength
+		if errors.As(err, &e) {
+			return e.Type
+		}
+		return 0
+	}
+	//a Recovery Time Stamp claiming 8 octets, of which 4 came
+	over := []byte{0, byte(ie.RECOVERY_TIME_STAMP_TYPE), 0, 8, 0, 0, 0, 1}
+	var hbr message.PFCPHeartbeatResponse
+	if got := length(hbr.UnmarshalBinary(over)); got != ie.RECOVERY_TIME_STAMP_TYPE {
+		t.Errorf("in a message: named %d", got)
+	}
+	inner := []byte{0, byte(ie.BAR_ID_TYPE), 0, 5, 1}
+	var rsp message.PFCPSessionReportResponse
+	err := rsp.UnmarshalBinary(body(t, tlv.TLVFrom(ie.CAUSE_TYPE, tlv.Bytes([]byte{1})),
+		tlv.TLVFrom(ie.UPDATE_BAR_PFCP_SESSION_REPORT_RESPONSE_TYPE, tlv.Bytes(inner))))
+	if got := length(err); got != ie.BAR_ID_TYPE {
+		t.Errorf("inside a grouped IE: named %d (%v), want the BAR ID", got, err)
+	}
+}

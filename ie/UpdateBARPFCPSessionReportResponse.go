@@ -38,7 +38,7 @@ func (t *UpdateBARPFCPSessionReportResponse) UnmarshalBinary(buf []byte) (err er
 	*t = UpdateBARPFCPSessionReportResponse{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [5]bool
 	for _, de := range elements {
@@ -83,7 +83,7 @@ func (t *UpdateBARPFCPSessionReportResponse) UnmarshalBinary(buf []byte) (err er
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {

@@ -71,7 +71,7 @@ func (t *PFCPSessionReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionReportRequest{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [10]bool
 	for _, de := range elements {
@@ -187,7 +187,7 @@ func (t *PFCPSessionReportRequest) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {
@@ -269,7 +269,7 @@ func (t *PFCPSessionReportResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionReportResponse{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [10]bool
 	for _, de := range elements {
@@ -360,7 +360,7 @@ func (t *PFCPSessionReportResponse) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {

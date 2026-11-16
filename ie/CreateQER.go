@@ -72,7 +72,7 @@ func (t *CreateQER) UnmarshalBinary(buf []byte) (err error) {
 	*t = CreateQER{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [14]bool
 	for _, de := range elements {
@@ -187,7 +187,7 @@ func (t *CreateQER) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {

@@ -1,6 +1,8 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp/v2"
+
 	"github.com/reogac/pfcp/v2/tlv"
 )
 
@@ -26,7 +28,7 @@ func (t *CreatedBridgeInfoforTSC) UnmarshalBinary(buf []byte) (err error) {
 	*t = CreatedBridgeInfoforTSC{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [2]bool
 	for _, de := range elements {
@@ -47,7 +49,7 @@ func (t *CreatedBridgeInfoforTSC) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return

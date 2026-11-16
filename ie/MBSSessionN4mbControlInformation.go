@@ -1,6 +1,8 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp/v2"
+
 	"github.com/reogac/pfcp/v2/tlv"
 )
 
@@ -32,7 +34,7 @@ func (t *MBSSessionN4mbControlInformation) UnmarshalBinary(buf []byte) (err erro
 	*t = MBSSessionN4mbControlInformation{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [4]bool
 	for _, de := range elements {
@@ -65,7 +67,7 @@ func (t *MBSSessionN4mbControlInformation) UnmarshalBinary(buf []byte) (err erro
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return

@@ -1,6 +1,8 @@
 package ie
 
 import (
+	"github.com/reogac/pfcp/v2"
+
 	"github.com/reogac/pfcp/v2/tlv"
 )
 
@@ -22,7 +24,7 @@ func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) Unmar
 	*t = PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	for _, de := range elements {
 		switch de.Type {
@@ -32,7 +34,7 @@ func (t *PFCPSessionRetentionInformationwithinPFCPAssociationSetupRequest) Unmar
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return

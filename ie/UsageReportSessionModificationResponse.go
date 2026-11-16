@@ -62,7 +62,7 @@ func (t *UsageReportSessionModificationResponse) UnmarshalBinary(buf []byte) (er
 	*t = UsageReportSessionModificationResponse{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [12]bool
 	for _, de := range elements {
@@ -162,7 +162,7 @@ func (t *UsageReportSessionModificationResponse) UnmarshalBinary(buf []byte) (er
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {

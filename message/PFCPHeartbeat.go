@@ -27,7 +27,7 @@ func (t *PFCPHeartbeatRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPHeartbeatRequest{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [2]bool
 	for _, de := range elements {
@@ -48,7 +48,7 @@ func (t *PFCPHeartbeatRequest) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	return
@@ -91,7 +91,7 @@ func (t *PFCPHeartbeatResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPHeartbeatResponse{}
 	elements, err := tlv.Elements(buf)
 	if err != nil {
-		return
+		return pfcp.Faulty(0, err)
 	}
 	var seen [1]bool
 	for _, de := range elements {
@@ -106,7 +106,7 @@ func (t *PFCPHeartbeatResponse) UnmarshalBinary(buf []byte) (err error) {
 			t.Unknown = append(t.Unknown, de.Type)
 		}
 		if err != nil {
-			return
+			return pfcp.Faulty(de.Type, err)
 		}
 	}
 	if !seen[0] {
