@@ -40,7 +40,6 @@ func (t *IPMulticastAddressingInfowithinPFCPSessionEstablishmentRequest) Unmarsh
 			seen[0] = true
 			t.IPMulticastAddress = de.Value
 		case SOURCE_IP_ADDRESS_TYPE:
-			opt = true
 			t.SourceIPAddress = append(t.SourceIPAddress, de.Value)
 		default:
 			t.Unknown = append(t.Unknown, de.Type)

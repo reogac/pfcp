@@ -96,7 +96,6 @@ func (t *CreateTrafficEndpoint) UnmarshalBinary(buf []byte) (err error) {
 			seen[0] = true
 			t.TrafficEndpointID = de.Value
 		case F_TEID_TYPE:
-			opt = true
 			if seen[1] {
 				continue
 			}
@@ -106,14 +105,12 @@ func (t *CreateTrafficEndpoint) UnmarshalBinary(buf []byte) (err error) {
 				t.LocalFTEID = &v
 			}
 		case NETWORK_INSTANCE_TYPE:
-			opt = true
 			if seen[2] {
 				continue
 			}
 			seen[2] = true
 			t.NetworkInstance = de.Value
 		case REDUNDANT_TRANSMISSION_PARAMETERS_TYPE:
-			opt = true
 			if seen[3] {
 				continue
 			}
@@ -125,39 +122,32 @@ func (t *CreateTrafficEndpoint) UnmarshalBinary(buf []byte) (err error) {
 				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case UE_IP_ADDRESS_TYPE:
-			opt = true
 			var v UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPaddress = append(t.UEIPaddress, v)
 			}
 		case ETHERNET_PDU_SESSION_INFORMATION_TYPE:
-			opt = true
 			if seen[4] {
 				continue
 			}
 			seen[4] = true
 			t.EthernetPDUSessionInformation = de.Value
 		case FRAMED_ROUTE_TYPE:
-			opt = true
 			t.FramedRoute = append(t.FramedRoute, de.Value)
 		case FRAMED_ROUTING_TYPE:
-			opt = true
 			if seen[5] {
 				continue
 			}
 			seen[5] = true
 			t.FramedRouting = de.Value
 		case FRAMED_IPV6_ROUTE_TYPE:
-			opt = true
 			t.FramedIPv6Route = append(t.FramedIPv6Route, de.Value)
 		case QFI_TYPE:
-			opt = true
 			var v uint8
 			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.QFI = append(t.QFI, v)
 			}
 		case _INTERFACE_TYPE_TYPE:
-			opt = true
 			if seen[6] {
 				continue
 			}
@@ -193,7 +183,6 @@ func (t *CreateTrafficEndpoint) UnmarshalBinary(buf []byte) (err error) {
 			seen[10] = true
 			t.AreaSessionID = de.Value
 		case RAT_TYPE_TYPE:
-			opt = true
 			if seen[11] {
 				continue
 			}

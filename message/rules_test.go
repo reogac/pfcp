@@ -188,3 +188,44 @@ func TestAFaultyOptionalIEIsDiscarded(t *testing.T) {
 		t.Errorf("an Averaging Window of 1 octet in a Create QER: %v, discarded %v", err, req.Invalid)
 	}
 }
+
+// A local rule, beyond 7.6.8: an IE inside a group that says what a PDR
+// matches - a PDI, a traffic endpoint, and the groups they hold - refuses the
+// message when faulty, optional or not, since discarding it would change or
+// widen the match. Optional IEs elsewhere are still discarded.
+func TestAFaultyIEOfARulesMatchRefuses(t *testing.T) {
+	invalid := func(err error) uint32 {
+		var e *pfcp.InvalidIE
+		if errors.As(err, &e) {
+			return e.Type
+		}
+		return 0
+	}
+	ip := net.IPv4(10, 0, 0, 1).To4()
+	node := ie.NewNodeIDv4(ip)
+	base := []tlv.Field{
+		tlv.TLVFrom(ie.NODE_ID_TYPE, tlv.Bytes(node.Bytes())),
+		tlv.TLVFrom(ie.F_SEID_TYPE, tlv.Bytes(ie.NewFSEID(&ip, nil, 1).Bytes())),
+		tlv.TLV(ie.CREATE_FAR_TYPE, tlv.TLVFrom(ie.FAR_ID_TYPE, tlv.Bytes([]byte{0, 0, 0, 1})),
+			tlv.TLVFrom(ie.APPLY_ACTION_TYPE, tlv.Bytes([]byte{0x02, 0}))),
+	}
+	pdr := func(pdi ...tlv.Field) tlv.Field {
+		return tlv.TLV(ie.CREATE_PDR_TYPE, tlv.TLVFrom(ie.PDR_ID_TYPE, tlv.Bytes([]byte{0, 1})),
+			tlv.TLVFrom(ie.PRECEDENCE_TYPE, tlv.Bytes([]byte{0, 0, 0, 1})),
+			tlv.TLV(ie.PDI_TYPE, append([]tlv.Field{tlv.TLVFrom(ie.SOURCE_INTERFACE_TYPE, tlv.Bytes([]byte{0}))}, pdi...)...))
+	}
+	for name, c := range map[string]struct {
+		extra []tlv.Field
+		want  uint32
+	}{
+		"a PDI's F-TEID of 1 octet": {[]tlv.Field{pdr(tlv.TLVFrom(ie.F_TEID_TYPE, tlv.Bytes([]byte{0x01})))}, ie.F_TEID_TYPE},
+		"a traffic endpoint's empty QFI": {[]tlv.Field{pdr(), tlv.TLV(ie.CREATE_TRAFFIC_ENDPOINT_TYPE,
+			tlv.TLVFrom(ie.TRAFFIC_ENDPOINT_ID_TYPE, tlv.Bytes([]byte{1})), tlv.TLVFrom(ie.QFI_TYPE, tlv.Bytes(nil)))}, ie.QFI_TYPE},
+	} {
+		var req message.PFCPSessionEstablishmentRequest
+		err := req.UnmarshalBinary(body(t, append(append([]tlv.Field{}, base...), c.extra...)...))
+		if got := invalid(err); got != c.want {
+			t.Errorf("%s: named %d (%v), want %d; discarded %v", name, got, err, c.want, req.Invalid)
+		}
+	}
+}

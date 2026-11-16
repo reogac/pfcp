@@ -68,35 +68,30 @@ func (t *EthernetPacketFilter) UnmarshalBinary(buf []byte) (err error) {
 			seen[1] = true
 			t.EthernetFilterProperties = de.Value
 		case MAC_ADDRESS_TYPE:
-			opt = true
 			if seen[2] {
 				continue
 			}
 			seen[2] = true
 			t.MACaddress = de.Value
 		case ETHERTYPE_TYPE:
-			opt = true
 			if seen[3] {
 				continue
 			}
 			seen[3] = true
 			t.Ethertype = de.Value
 		case C_TAG_TYPE:
-			opt = true
 			if seen[4] {
 				continue
 			}
 			seen[4] = true
 			t.CTAG = de.Value
 		case S_TAG_TYPE:
-			opt = true
 			if seen[5] {
 				continue
 			}
 			seen[5] = true
 			t.STAG = de.Value
 		case SDF_FILTER_TYPE:
-			opt = true
 			var v SDFFilter
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.SDFFilter = append(t.SDFFilter, v)

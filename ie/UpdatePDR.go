@@ -154,7 +154,6 @@ func (t *UpdatePDR) UnmarshalBinary(buf []byte) (err error) {
 			seen[6] = true
 			t.DeactivationTime = de.Value
 		case IP_MULTICAST_ADDRESSING_INFO_WITHIN_PFCP_SESSION_ESTABLISHMENT_REQUEST_TYPE:
-			opt = true
 			var v IPMulticastAddressingInfowithinPFCPSessionEstablishmentRequest
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.IPMulticastAddressingInfo = append(t.IPMulticastAddressingInfo, v)

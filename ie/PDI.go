@@ -112,7 +112,6 @@ func (t *PDI) UnmarshalBinary(buf []byte) (err error) {
 			seen[0] = true
 			err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &t.SourceInterface)
 		case F_TEID_TYPE:
-			opt = true
 			if seen[1] {
 				continue
 			}
@@ -128,14 +127,12 @@ func (t *PDI) UnmarshalBinary(buf []byte) (err error) {
 			seen[2] = true
 			t.LocalIngressTunnel = de.Value
 		case NETWORK_INSTANCE_TYPE:
-			opt = true
 			if seen[3] {
 				continue
 			}
 			seen[3] = true
 			t.NetworkInstance = de.Value
 		case REDUNDANT_TRANSMISSION_PARAMETERS_TYPE:
-			opt = true
 			if seen[4] {
 				continue
 			}
@@ -147,7 +144,6 @@ func (t *PDI) UnmarshalBinary(buf []byte) (err error) {
 				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case UE_IP_ADDRESS_TYPE:
-			opt = true
 			var v UEIPAddress
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.UEIPaddress = append(t.UEIPaddress, v)
@@ -155,13 +151,11 @@ func (t *PDI) UnmarshalBinary(buf []byte) (err error) {
 		case TRAFFIC_ENDPOINT_ID_TYPE:
 			t.TrafficEndpointID = append(t.TrafficEndpointID, de.Value)
 		case SDF_FILTER_TYPE:
-			opt = true
 			var v SDFFilter
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.SDFFilter = append(t.SDFFilter, v)
 			}
 		case APPLICATION_ID_TYPE:
-			opt = true
 			if seen[5] {
 				continue
 			}
@@ -171,14 +165,12 @@ func (t *PDI) UnmarshalBinary(buf []byte) (err error) {
 				t.ApplicationID = &v
 			}
 		case ETHERNET_PDU_SESSION_INFORMATION_TYPE:
-			opt = true
 			if seen[6] {
 				continue
 			}
 			seen[6] = true
 			t.EthernetPDUSessionInformation = de.Value
 		case ETHERNET_PACKET_FILTER_TYPE:
-			opt = true
 			var v EthernetPacketFilter
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.EthernetPacketFilter = append(t.EthernetPacketFilter, v)
@@ -186,33 +178,27 @@ func (t *PDI) UnmarshalBinary(buf []byte) (err error) {
 				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case QFI_TYPE:
-			opt = true
 			var v uint8
 			if err = pfcp.UnmarshalExtendable(de.Value, 1, 1, &v); err == nil {
 				t.QFI = append(t.QFI, v)
 			}
 		case FRAMED_ROUTE_TYPE:
-			opt = true
 			t.FramedRoute = append(t.FramedRoute, de.Value)
 		case FRAMED_ROUTING_TYPE:
-			opt = true
 			if seen[7] {
 				continue
 			}
 			seen[7] = true
 			t.FramedRouting = de.Value
 		case FRAMED_IPV6_ROUTE_TYPE:
-			opt = true
 			t.FramedIPv6Route = append(t.FramedIPv6Route, de.Value)
 		case _INTERFACE_TYPE_TYPE:
-			opt = true
 			if seen[8] {
 				continue
 			}
 			seen[8] = true
 			t.SourceInterfaceType = de.Value
 		case IP_MULTICAST_ADDRESSING_INFO_WITHIN_PFCP_SESSION_ESTABLISHMENT_REQUEST_TYPE:
-			opt = true
 			var v IPMulticastAddressingInfowithinPFCPSessionEstablishmentRequest
 			if err = de.UnmarshalValue(&v); err == nil {
 				t.IPMulticastAddressingInfo = append(t.IPMulticastAddressingInfo, v)
@@ -220,7 +206,6 @@ func (t *PDI) UnmarshalBinary(buf []byte) (err error) {
 				t.Invalid = append(t.Invalid, v.Invalid...)
 			}
 		case DNS_QUERY_FILTER_TYPE:
-			opt = true
 			t.DNSQueryFilter = append(t.DNSQueryFilter, de.Value)
 		case MBS_SESSION_IDENTIFIER_TYPE:
 			if seen[9] {
