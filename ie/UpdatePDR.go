@@ -13,8 +13,8 @@ type UpdatePDR struct {
 	Precedence                *uint32                                                         //Precedence
 	PDI                       *PDI                                                            //PDI
 	FARID                     *uint32                                                         //FAR ID
-	URRID                     *uint32                                                         //URR ID
-	QERID                     *uint32                                                         //QER ID
+	URRID                     []uint32                                                        //URR ID, as many as the PDR names (TS 29.244 Table 7.5.4.2-1)
+	QERID                     []uint32                                                        //QER ID, as many as the PDR names (TS 29.244 Table 7.5.4.2-1)
 	ActivatePredefinedRules   []byte                                                          //Activate Predefined Rules
 	DeactivatePredefinedRules []byte                                                          //Deactivate Predefined Rules
 	ActivationTime            []byte                                                          //Activation Time
@@ -39,11 +39,11 @@ func (t *UpdatePDR) Field() tlv.Field {
 	if t.FARID != nil {
 		fields = append(fields, tlv.TLVFrom(FAR_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.FARID))))
 	}
-	if t.URRID != nil {
-		fields = append(fields, tlv.TLVFrom(URR_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.URRID))))
+	for _, ie := range t.URRID {
+		fields = append(fields, tlv.TLVFrom(URR_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(ie))))
 	}
-	if t.QERID != nil {
-		fields = append(fields, tlv.TLVFrom(QER_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.QERID))))
+	for _, ie := range t.QERID {
+		fields = append(fields, tlv.TLVFrom(QER_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(ie))))
 	}
 	if len(t.ActivatePredefinedRules) > 0 {
 		fields = append(fields, tlv.TLVFrom(ACTIVATE_PREDEFINED_RULES_TYPE, tlv.Bytes(t.ActivatePredefinedRules)))
@@ -102,12 +102,12 @@ func (t *UpdatePDR) UnmarshalBinary(buf []byte) (err error) {
 		case URR_ID_TYPE:
 			var v uint32
 			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
-				t.URRID = &v
+				t.URRID = append(t.URRID, v)
 			}
 		case QER_ID_TYPE:
 			var v uint32
 			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
-				t.QERID = &v
+				t.QERID = append(t.QERID, v)
 			}
 		case ACTIVATE_PREDEFINED_RULES_TYPE:
 			t.ActivatePredefinedRules = de.Value

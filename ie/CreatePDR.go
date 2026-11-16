@@ -14,7 +14,7 @@ type CreatePDR struct {
 	OuterHeaderRemoval                              *OuterHeaderRemoval                                             //Outer Header Removal
 	FARID                                           *uint32                                                         //FAR ID
 	URRID                                           []uint32                                                        //URR ID
-	QERID                                           *uint32                                                         //QER ID
+	QERID                                           []uint32                                                        //QER ID, as many as the PDR names (TS 29.244 Table 7.5.2.2-1)
 	ActivatePredefinedRules                         []byte                                                          //Activate Predefined Rules
 	ActivationTime                                  []byte                                                          //Activation Time
 	DeactivationTime                                []byte                                                          //Deactivation Time
@@ -43,8 +43,8 @@ func (t *CreatePDR) Field() tlv.Field {
 	for _, ie := range t.URRID {
 		fields = append(fields, tlv.TLVFrom(URR_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(ie))))
 	}
-	if t.QERID != nil {
-		fields = append(fields, tlv.TLVFrom(QER_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(*t.QERID))))
+	for _, ie := range t.QERID {
+		fields = append(fields, tlv.TLVFrom(QER_ID_TYPE, tlv.Bytes(pfcp.MarshalUint32(ie))))
 	}
 	if len(t.ActivatePredefinedRules) > 0 {
 		fields = append(fields, tlv.TLVFrom(ACTIVATE_PREDEFINED_RULES_TYPE, tlv.Bytes(t.ActivatePredefinedRules)))
@@ -114,7 +114,7 @@ func (t *CreatePDR) UnmarshalBinary(buf []byte) (err error) {
 		case QER_ID_TYPE:
 			var v uint32
 			if err = pfcp.UnmarshalUint32(de.Value, &v); err == nil {
-				t.QERID = &v
+				t.QERID = append(t.QERID, v)
 			}
 		case ACTIVATE_PREDEFINED_RULES_TYPE:
 			t.ActivatePredefinedRules = de.Value

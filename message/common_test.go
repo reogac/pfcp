@@ -34,7 +34,7 @@ func Test_pfcp(t *testing.T) {
 				Desc: ie.OuterHeaderRemovalGtpUUdpIpv4,
 			},
 			URRID: []uint32{1, 2, 4},
-			QERID: &u32,
+			QERID: []uint32{u32, 9},
 		},
 		{
 			PDRID:      2,
@@ -52,7 +52,7 @@ func Test_pfcp(t *testing.T) {
 				Desc: ie.OuterHeaderRemovalGtpUUdpIpv4,
 			},
 			URRID: []uint32{1, 2, 4},
-			QERID: &u32,
+			QERID: []uint32{u32},
 		},
 	}
 	barId := uint8(1)
