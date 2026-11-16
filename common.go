@@ -79,13 +79,13 @@ func UnmarshalExtendable[T uint8 | uint16 | uint32](buf []byte, min, known int, 
 	if len(buf) < min {
 		return tlv.ErrIncomplete
 	}
-	var x T
+	var x uint64
 	for i := 0; i < known; i++ {
 		x <<= 8
 		if i < len(buf) {
-			x |= T(buf[i])
+			x |= uint64(buf[i])
 		}
 	}
-	*v = x
+	*v = T(x)
 	return nil
 }
