@@ -58,4 +58,4 @@ settles (`PLAN.md`, phase B).
 | --- | --- |
 | generated | `ie/tags.go`; every grouped IE in `ie/`; every message file in `message/` except those below |
 | hand-written, the leaf codecs | the `ie/*IE.go` of the types `field-ies.py` lists |
-| hand-written, the rest | `tlv/`; `common.go`; `ie/{cause,mics,VolumeMeasurement,bitrate,DLBufferingSuggestedPacketCountIE}.go`; `message/{header,codec,msgtype,json,Association}.go`; every `_test.go` |
+| hand-written, the rest | `tlv/`; `common.go`; `ie/{cause,mics,VolumeMeasurement,bitrate,DLBufferingSuggestedPacketCountIE,constructors}.go`; `message/{header,codec,msgtype,json,Association}.go`; every `_test.go` |
