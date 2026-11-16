@@ -84,6 +84,10 @@ any caller in this phase.
 
 ## Phase C — the rules fixed
 
+*Done 2026-11-16*, C1 to C8. C7 needs no change to the generator, which writes the two
+trigger IEs in 3 octets already: the library takes it at regeneration (phase E). The
+output builds; the library's own tests set fields that became lists, and follow in phase E.
+
 One commit per rule. Each is regenerated and its diff reviewed against the expectation written
 here.
 
