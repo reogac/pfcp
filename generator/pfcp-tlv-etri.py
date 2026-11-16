@@ -103,6 +103,23 @@ def write_unmarshal_multi_ie(f, ieName, customType, ieSize, isGroup=False):
         f.write("t." + ieName + " = append(t." + ieName + ", v)\n")
         f.write("}\n")
 
+# mandatory_on_n4 is whether a row is M on N4: a row is mandatory on the
+# interfaces its applicability columns mark, and the N4 column is the one this
+# library is for
+def mandatory_on_n4(ie):
+    return ie["presence"] == "M" and ie.get("n4") == "X" and not ie.get("collapsed")
+
+# write_mandatory_checks ends a decoder: a mandatory IE that did not arrive is a
+# MissingIE naming its type (TS 29.244 7.6.6). checks are (row, seen index or
+# None for a list, field name, tag)
+def write_mandatory_checks(f, checks):
+    for (ie, idx, ieName, ieTag) in checks:
+        if idx is None:
+            f.write("if len(t.%s) == 0 {\n" % ieName)
+        else:
+            f.write("if !seen[%d] {\n" % idx)
+        f.write("return &pfcp.MissingIE{Type: %s}\n}\n" % ieTag)
+
 # write_first_only guards the decoding of a single IE: an IE repeated where
 # repetition is not specified is handled once, at its first occurrence, and its
 # later ones ignored (TS 29.244 7.6.10). seen is an array on the decoder's
@@ -961,11 +978,12 @@ for (k, v) in sorted_group_list:
         else:
             assert False, "Unknown size = %d for key = %s" % (ieSize, ieKey)
  
-# pointer_fields are the mandatory grouped or custom-typed fields of grouped IEs
-# generated as pointers, as optional ones are, so that a missing one reads as
-# nil rather than as a zero value. These two are the ones made pointers by hand;
-# PLAN.md C2 makes it the rule for every mandatory IE
-pointer_fields = {("Create PDR", "PDI"), ("Create QER", "Gate Status")}
+# pointer_fields are mandatory fields of grouped IEs generated as pointers, as
+# optional ones are. None: a mandatory IE is a value, and a decoder reports one
+# that is missing (write_mandatory_checks) rather than leaving a nil to find.
+# Create PDR's PDI and Create QER's Gate Status were made pointers by hand and
+# are values again
+pointer_fields = set()
 
 # groupPresence is the presence a field of grouped IE g is generated with
 def groupPresence(g, ie, customType):
@@ -1095,6 +1113,9 @@ for (k, v) in sorted_group_list:
     f.write("}\n")
     f.write("}\n")
 
+    write_mandatory_checks(f, [(ie, None if repeats(k, ie) else singles.index(ie),
+                                 v_cap(ie["ie_value"]), v_upper(ie["ie_type"]) + "_TYPE")
+                                for ie in rows if mandatory_on_n4(ie)])
     f.write("return\n")
     f.write("}\n")
     f.write("\n")
@@ -1183,6 +1204,23 @@ for (k, v) in sorted_msg_list:
     f.write("return\n")
     f.write("}\n")
     f.write("}\n")
+
+    # TS 29.244 7.6.6 checks a request but a Heartbeat Request, and a response
+    # only without a rejection Cause, one of 64 and above (Table 8.2.1-1): a
+    # rejection may leave out what an acceptance carries
+    checks = [(ie, None if ie["multi"] else singles.index(ie), v_cap(ie["ie_value"]), ie["tag"])
+              for ie in msg_list[k]["ies"] if mandatory_on_n4(ie)]
+    if k != "PFCP Heartbeat Request":
+        cause = [c for c in checks if c[0]["ie_type"] == "Cause"]
+        if k.endswith("Response") and cause:
+            write_mandatory_checks(f, cause)
+            rest = [c for c in checks if c not in cause]
+            if rest:
+                f.write("if t.%s < ie.CauseRequestRejected {\n" % cause[0][2])
+                write_mandatory_checks(f, rest)
+                f.write("}\n")
+        else:
+            write_mandatory_checks(f, checks)
     f.write("return\n")
     f.write("}\n\n")
 

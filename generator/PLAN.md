@@ -38,7 +38,7 @@ recorded here.
 | --- | --- |
 | generated | `ie/tags.go`; every grouped IE in `ie/`; every message file in `message/` except those below |
 | hand-written, the leaf codecs | the `ie/*IE.go` of the types `field-ies.py` lists: F-TEID, SDF Filter, Application ID, Gate Status, MBR, GBR, Volume Threshold, Apply Action, F-SEID, Node ID, Measurement Method, FQ-CSID, Volume Quota, Outer Header Creation, UE IP Address, Outer Header Removal, Measurement Information |
-| hand-written, the rest | `tlv/`; `common.go`; `ie/{cause,mics,VolumeMeasurement,bitrate,DLBufferingSuggestedPacketCountIE,constructors}.go`; `message/{header,codec,msgtype,json,Association}.go`; every `_test.go` |
+| hand-written, the rest | `tlv/`; `common.go`; `errors.go`; `ie/{cause,mics,VolumeMeasurement,bitrate,DLBufferingSuggestedPacketCountIE,constructors}.go`; `message/{header,codec,msgtype,json,Association}.go`; every `_test.go` |
 
 ## Phase B — reproduce today's library
 
