@@ -16,8 +16,8 @@ file it generates.
   3GPP's text and are not committed: download `29244-h71.zip` from the 3GPP archive, convert it,
   and apply the edits.
 - **`cache/`** is the generator's real input. While it exists the docx is not read at all, so
-  regenerating needs only the cache. It is the parse of the docx with one edit of its own
-  (below). Delete it to parse the docx again.
+  regenerating needs only the cache. It is exactly the parse of the docx: each row's name,
+  presence, comment and whether it applies on N4. Delete it to parse the docx again.
 - **`field-ies.py`** lists the leaf IEs whose codec is written by hand. The generator writes a
   stub `<Type>IE.go` for each, once, and never overwrites it.
 
@@ -27,7 +27,7 @@ file it generates.
 | --- | --- |
 | the docx | "Adjust table cell", the cells the parse would otherwise misread; the exact cells are not recorded, which `PLAN.md` C6 is to fix |
 | the docx | User Plane IP Resource Information added back: Release 17 removed it and Open5GS still used it |
-| `cache/tlv-group-list.py` | Update Forwarding Parameters' "Network instance" written "Network Instance", so the field is `NetworkInstance`: a parse of the docx gives the lower case |
+| the generator, not the cache | Update Forwarding Parameters' "Network instance" read as "Network Instance" (`name_overrides`), so the field is `NetworkInstance` like every other one |
 
 ## Regenerating
 
@@ -49,7 +49,7 @@ phase C is done. Today the output differs from the library in 11 files, each in 
 settles (`PLAN.md`, phase B).
 
 **Checked 2026-11-16, with the versions in `requirements.txt`:**
-- From the docx, the script rebuilds `cache/` but for the one cache edit above.
+- From the docx, the script rebuilds `cache/` exactly.
 - From `cache/`, it writes 96 of the library's 107 generated files exactly.
 
 ## Which files are which

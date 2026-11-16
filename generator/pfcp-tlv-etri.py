@@ -273,7 +273,16 @@ def usage():
     print("-c [dir]  Cache files to given directory")
     print("-h        Print this help and return")
 
-def get_cells(cells):
+# n4_column is the index of a table's N4 applicability column, found by its
+# header cell, or None for a table with none
+def n4_column(table, header_rows):
+    for row in table.rows[:header_rows]:
+        for i, c in enumerate(row.cells):
+            if c.text.strip() == "N4":
+                return i
+    return None
+
+def get_cells(cells, n4idx=None):
     note = cells[0].text
     if note.find('NOTE') != -1:
         return None
@@ -383,14 +392,21 @@ def get_cells(cells):
         type_list[ie_type]["max_tlv_more"] = tlv_more
         write_file(f, "type_list[\"" + ie_type + "\"][\"max_tlv_more\"] = \"" + tlv_more + "\"\n")
 
-    return { "ie_type" : ie_type, "ie_value" : ie_value, "presence" : presence, "tlv_more" : tlv_more, "comment" : comment }
+    # whether the row applies on N4: "X" or "-", "" for a table with no column.
+    # A row listing flags marks each in its own paragraph, so the cell is X when
+    # it marks N4 at all
+    n4 = ""
+    if n4idx is not None and n4idx < len(cells):
+        n4 = "X" if "X" in cells[n4idx].text else "-"
+    return { "ie_type" : ie_type, "ie_value" : ie_value, "presence" : presence, "tlv_more" : tlv_more, "comment" : comment, "n4" : n4 }
 
 def write_cells_to_file(name, cells):
     write_file(f, name + ".append({ \"ie_type\" : \"" + cells["ie_type"] + \
         "\", \"ie_value\" : \"" + cells["ie_value"] + \
         "\", \"presence\" : \"" + cells["presence"] + \
         "\", \"tlv_more\" : \"" + cells["tlv_more"] + \
-        "\", \"comment\" : \"" + cells["comment"] + "\"})\n")
+        "\", \"comment\" : \"" + cells["comment"] + \
+        "\", \"n4\" : \"" + cells.get("n4", "") + "\"})\n")
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], "df:ho:c:", ["debug", "file", "help", "output", "cache"])
@@ -580,8 +596,9 @@ else:
                 if ie_name not in group_list.keys():
                     ies = []
                     write_file(f, "ies = []\n")
+                    n4idx = n4_column(table, 4)
                     for row in table.rows[4:]:
-                        cells = get_cells(row.cells)
+                        cells = get_cells(row.cells, n4idx)
                         if cells is None:
                             continue
 
@@ -642,8 +659,9 @@ for key in msg_list.keys():
             ies = []
             write_file(f, "ies = []\n")
             if key != "PFCP Session Deletion Request" and key != "PFCP Version Not Supported Response":
+                n4idx = n4_column(table, start_i)
                 for row in table.rows[start_i:]:
-                    cells = get_cells(row.cells)
+                    cells = get_cells(row.cells, n4idx)
                     if cells is None:
                         continue
 
@@ -652,7 +670,8 @@ for key in msg_list.keys():
                         "ie_value" : cells["ie_value"],
                         "presence" : cells["presence"],
                         "tlv_more" : cells["tlv_more"],
-                        "comment" : cells["comment"]
+                        "comment" : cells["comment"],
+                        "n4" : cells["n4"]
                         }
                     ies.append(item)
                     write_cells_to_file("ies", item)
@@ -842,6 +861,17 @@ def field_decl(f, ieName, ieType, ieKey, multi, value):
 # logs what this holds. Not in the JSON form, which carries what was decoded
 def unknown_field(f):
     f.write("Unknown []uint32 `json:\"-\"` //IE types skipped: unknown, or not defined here (TS 29.244 7.6.9)\n")
+
+# name_overrides correct a row's name where the specification's spelling would
+# name the field differently from every other row of its kind
+name_overrides = {
+    # every other Network Instance row is spelled with a capital I
+    ("Update Forwarding Parameters", "Network instance"): "Network Instance",
+}
+for (k, v) in group_list.items():
+    for ie in v["ies"]:
+        if (k, ie["ie_value"]) in name_overrides:
+            ie["ie_value"] = name_overrides[(k, ie["ie_value"])]
 
 # presence overrides, each a row whose P column cannot be taken as it is.
 # MBS Session N4mb Control Information is M on N4mb alone: its Sxa, Sxb, Sxc
