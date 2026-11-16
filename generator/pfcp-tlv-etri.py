@@ -781,6 +781,42 @@ sorted_group_list = sorted(tmp, key=lambda tup: int(tup[1]), reverse=False)
 
 
 
+# repetition: whether a row may occur more than once, read from the row's own
+# text. TS 29.244 says so in one of these phrasings, and a row saying none is a
+# single IE; a repeated IE where repetition is not specified is a later
+# occurrence to ignore (7.6.10). This replaces Open5GS's tlv_more, a list of the
+# IEs Open5GS itself needed as arrays, which left most repeated IEs single
+repeat_phrases = re.compile(
+    r"[Ss]everal IEs? (with|within) the same (IE )?type"
+    r"|[Mm]ore than one IE with this type"
+    r"|[Tt]here may be several instances"
+    r"|[Tt]wo IEs with the same IE type"
+    r"|list of all the")
+
+# repeat_overrides are rows that repeat although their text uses none of the
+# phrases, each with the wording that says so
+repeat_overrides = {
+    # "shall be included per PDR ID reported in the message. When multiple PDR ID
+    # IEs are present in the message, ..."
+    ("Downlink Data Report", "Downlink Data Service Information"),
+}
+
+# repeats is whether row ie of message or grouped IE k is a list
+def repeats(k, ie):
+    return bool(ie.get("collapsed")) or (k, ie["ie_value"]) in repeat_overrides \
+        or bool(repeat_phrases.search(ie["comment"]))
+
+# field_decl writes one field of a struct: a list, a value, or a pointer. It is
+# the one place a field's Go type is decided, so that the type of a repeated IE
+# can change later in one edit
+def field_decl(f, ieName, ieType, ieKey, multi, value):
+    if multi:
+        f.write("%s []%s //%s\n" % (ieName, ieType, ieKey))
+    elif value:
+        f.write("%s %s //%s\n" % (ieName, ieType, ieKey))
+    else:
+        f.write("%s *%s //%s\n" % (ieName, ieType, ieKey))
+
 # presence overrides, each a row whose P column cannot be taken as it is.
 # MBS Session N4mb Control Information is M on N4mb alone: its Sxa, Sxb, Sxc
 # and N4 columns are "-", and a value field sent it on every N4 request
@@ -805,6 +841,7 @@ for (k, v) in sorted_msg_list:
             newIe = ie
             newIe["ie_value"] = ie["ie_type"] + " List"
             newIe["tlv_more"] = 5 #set to a non-zero number
+            newIe["collapsed"] = True
             type_list[ie["ie_type"]]["max_tlv_more"] = 5
             repIes.append(newIe)
             break
@@ -907,13 +944,8 @@ for (k, v) in sorted_group_list:
             ieType = customType
 
 
-        if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
-            f.write("%s []%s //%s\n" %(ieName, ieType, ieKey))
-        else:
-            if groupPresence(k, ie, customType) == "M" or ieType == "[]byte":
-                f.write("%s %s //%s\n" %(ieName, ieType, ieKey))
-            else:
-                f.write("%s *%s //%s\n" %(ieName, ieType, ieKey))
+        field_decl(f, ieName, ieType, ieKey, repeats(k, ie),
+                   groupPresence(k, ie, customType) == "M" or ieType == "[]byte")
     f.write("}\n")
     f.write("\n")
 
@@ -938,7 +970,7 @@ for (k, v) in sorted_group_list:
 
         ieType = ie["goType"] 
 
-        if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
+        if repeats(k, ie):
             write_field_multi_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"])
         else:
             write_field_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"], groupPresence(k, ie, customType))
@@ -968,7 +1000,7 @@ for (k, v) in sorted_group_list:
         ieTag = v_upper(ieKey) + "_TYPE"
 
         f.write("case " + ieTag + ":\n")
-        if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
+        if repeats(k, ie):
             write_unmarshal_multi_ie(f, ieName, customType, ie["size"])
         else:
             write_unmarshal_ie(f, ieName, customType, ie["size"], groupPresence(k, ie, customType))
@@ -1021,19 +1053,15 @@ for (k, v) in sorted_msg_list:
             ie["goType"] = get_types(ieSize)[1]
         ie["isGroup"] = ieKey in group_list
         ie["tag"] = "ie." + v_upper(ieKey) + "_TYPE"
-        ie["multi"] = type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0"
+        ie["multi"] = repeats(k, ie)
 
     f.write("\n/* \'" + k + "\' data structure */\n")
     f.write("type " + msgType + " struct {\n")
     for ie in msg_list[k]["ies"]:
         ieName = v_cap(ie["ie_value"])
         ieType = ie["goType"]
-        if ie["multi"]:
-            f.write("%s []%s //%s\n" % (ieName, ieType, ie["ie_type"]))
-        elif ie["presence"] == "M" or ieType == "[]byte":
-            f.write("%s %s //%s\n" % (ieName, ieType, ie["ie_type"]))
-        else:
-            f.write("%s *%s //%s\n" % (ieName, ieType, ie["ie_type"]))
+        field_decl(f, ieName, ieType, ie["ie_type"], ie["multi"],
+                   ie["presence"] == "M" or ieType == "[]byte")
     f.write("}\n\n")
 
     #fielder
