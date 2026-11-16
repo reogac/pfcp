@@ -34,23 +34,23 @@ file it generates.
 ```bash
 pip install -r requirements.txt        # the versions the cache was checked with
 python3 pfcp-tlv-etri.py -f 29244-h71-modified.docx -o <dir>/
-gofmt -w <dir>/*.go
+gofmt -w <dir>
 ```
 
-The script needs the docx path even when it reads only the cache. It writes into `<dir>`:
-- `tags.go`;
-- a file per grouped IE;
-- `message.go`;
-- the stubs of `field-ies.py` not yet there.
+The script needs the docx path even when it reads only the cache. It writes the library's
+layout under `<dir>`:
+- `ie/tags.go`;
+- a file per grouped IE in `ie/`;
+- a file per message and its response in `message/`;
+- in `ie/`, the stubs of `field-ies.py` not yet there.
 
-**Today the output is not the library's form**: package `pfcp`, ndn-dpdk's TLV, one
-`message.go`. The library was laid out and fixed by hand after it (`PLAN.md`, "Where we start").
-Until `PLAN.md` phase B is done, regenerating writes beside the library, never over it.
+**Regenerate into a scratch directory and compare, never over the library**, until `PLAN.md`
+phase C is done. Today the output differs from the library in 11 files, each in a way phase C
+settles (`PLAN.md`, phase B).
 
 **Checked 2026-11-16, with the versions in `requirements.txt`:**
-- From `cache/`, the script reproduces every generated file of its last output exactly, after
-  `gofmt`.
-- From the docx, it rebuilds `cache/` but for the one cache edit above.
+- From the docx, the script rebuilds `cache/` but for the one cache edit above.
+- From `cache/`, it writes 96 of the library's 107 generated files exactly.
 
 ## Which files are which
 

@@ -16,7 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from docx import Document
-import re, os, sys, string
+import re, os, sys, string, io
 import datetime
 import getopt
 import getpass
@@ -91,7 +91,7 @@ def write_unmarshal_multi_ie(f, ieName, customType, ieSize):
         f.write("t." + ieName + " = append(t." + ieName + ", de.Value)\n")
     else:
         f.write("var v " + t+ "\n")
-        f.write("if err = Unmarshal%s(de.Value, &v); err == nil {\n" % m)
+        f.write("if err = pfcp.Unmarshal%s(de.Value, &v); err == nil {\n" % m)
         f.write("t." + ieName + " = append(t." + ieName + ", v)\n")
         f.write("}\n")
 
@@ -109,27 +109,27 @@ def write_unmarshal_ie(f, ieName, customType, ieSize, presence):
         f.write("t.%s = de.Value\n" % ieName)
     else:
         if presence == "M":
-            f.write("err = Unmarshal%s(de.Value, &t.%s)\n" % (m, ieName))
+            f.write("err = pfcp.Unmarshal%s(de.Value, &t.%s)\n" % (m, ieName))
         else:
             f.write("var v %s\n" % t)
-            f.write("if err = Unmarshal%s(de.Value, &v); err == nil {\n" % m)
+            f.write("if err = pfcp.Unmarshal%s(de.Value, &v); err == nil {\n" % m)
             f.write("t." + ieName + " = &v\n")
             f.write("}\n")
 
-def write_field_multi_ie(f, ieName, ieTag, customType, isGroup, ieSize):
+def write_field_multi_ie(f, ieName, ieTag, customType, isGroup, ieSize, v="ie"):
     m, t = get_types(ieSize) 
     if customType:
         if isGroup:
-            ieMarshal = "ie.Field()"
+            ieMarshal = "%s.Field()" % v
         else:
-            ieMarshal = "tlv.TLVFrom(%s, tlv.Bytes(ie.Bytes()))" % ieTag
+            ieMarshal = "tlv.TLVFrom(%s, tlv.Bytes(%s.Bytes()))" % (ieTag, v)
     elif t == "[]byte":
-        ieMarshal = "tlv.TLVFrom(%s, tlv.Bytes(ie))" % ieTag
+        ieMarshal = "tlv.TLVFrom(%s, tlv.Bytes(%s))" % (ieTag, v)
     else: 
-        ieMarshal = "tlv.TLVFrom(%s, tlv.Bytes(Marshal%s(ie)))" % (ieTag, m)
+        ieMarshal = "tlv.TLVFrom(%s, tlv.Bytes(pfcp.Marshal%s(%s)))" % (ieTag, m, v)
 
     #f.write("if len(t." + ieName + ") >0 {\n")
-    f.write("for _, ie := range t.%s {\n" % ieName)
+    f.write("for _, %s := range t.%s {\n" % (v, ieName))
     f.write("fields = append(fields, %s)\n" % ieMarshal)
     f.write("}\n")
     #f.write("}\n")
@@ -159,18 +159,18 @@ def write_field_ie(f, ieName, ieTag, customType, isGroup, ieSize, presence):
                     % (ieTag, ieMarshal))
     else: 
         if presence == "M":
-            ieMarshal = "Marshal%s(t.%s)" % (m, ieName)
+            ieMarshal = "pfcp.Marshal%s(t.%s)" % (m, ieName)
             f.write("fields = append(fields, tlv.TLVFrom(%s,\
                     tlv.Bytes(%s)))\n" % (ieTag, ieMarshal))
         else:
-            ieMarshal = "Marshal%s(*t.%s)" % (m, ieName)
+            ieMarshal = "pfcp.Marshal%s(*t.%s)" % (m, ieName)
             f.write("if t.%s !=nil {\n" % ieName)
             f.write("fields = append(fields, tlv.TLVFrom(%s,\
                     tlv.Bytes(%s)))\n" % (ieTag, ieMarshal))
             f.write("}\n")
 
 def write_custom_type(ieType, ieSize):
-    type_file = outdir + ieType + "IE.go"
+    type_file = ieDir + ieType + "IE.go"
     if os.path.isfile(type_file):
         return
 
@@ -223,6 +223,27 @@ def write_custom_type(ieType, ieSize):
 def output_header_to_file(f):
     now = datetime.datetime.now()
     f.write("package pfcp\n\n")
+
+modulePath = "github.com/reogac/pfcp"
+
+# write_go_file writes a generated file of package pkg: the body, behind the
+# imports it uses. The module's own packages come first and its tlv package
+# after a blank line, as gofmt leaves the library's files.
+def write_go_file(path, pkg, body):
+    own = []
+    if "pfcp." in body:
+        own.append(modulePath)
+    if pkg != "ie" and "ie." in body:
+        own.append(modulePath + "/ie")
+    f = open(path, 'w')
+    f.write("package %s\n\nimport (\n" % pkg)
+    for imp in own:
+        f.write("\"%s\"\n" % imp)
+    if own:
+        f.write("\n")
+    f.write("\"%s/tlv\"\n)\n" % modulePath)
+    f.write(body)
+    f.close()
 
 def usage():
     print("Python generating TLV build/parser for PFCP v%s" % (version))
@@ -376,6 +397,11 @@ for o, a in opts:
     if o in ("-h", "--help"):
         usage()
         sys.exit(2)
+
+ieDir = outdir + 'ie/'
+msgDir = outdir + 'message/'
+os.makedirs(ieDir, exist_ok=True)
+os.makedirs(msgDir, exist_ok=True)
 
 if os.path.isfile(filename) and os.access(filename, os.R_OK):
     file = open(filename, 'r')
@@ -667,8 +693,8 @@ type_list["Data Status"]["size"] = 1                        # Type 260
 
 
 #TLV tags definitions
-f = open(outdir + 'tags.go', 'w')
-output_header_to_file(f)
+f = open(ieDir + 'tags.go', 'w')
+f.write("package ie\n\n")
 
 f.write("/* PFCP message type */\n")
 
@@ -755,6 +781,17 @@ sorted_group_list = sorted(tmp, key=lambda tup: int(tup[1]), reverse=False)
 
 
 
+# presence overrides, each a row whose P column cannot be taken as it is.
+# MBS Session N4mb Control Information is M on N4mb alone: its Sxa, Sxb, Sxc
+# and N4 columns are "-", and a value field sent it on every N4 request
+presence_overrides = {
+    ("PFCP Session Establishment Request", "MBS Session N4mb Control Information"): "O",
+}
+for (k, v) in sorted_msg_list:
+    for ie in msg_list[k]["ies"]:
+        if (k, ie["ie_value"]) in presence_overrides:
+            ie["presence"] = presence_overrides[(k, ie["ie_value"])]
+
 #fix attributes having same TLV tag in a message
 #replace them with a single list of same type
 for (k, v) in sorted_msg_list:
@@ -831,17 +868,25 @@ for (k, v) in sorted_group_list:
         else:
             assert False, "Unknown size = %d for key = %s" % (ieSize, ieKey)
  
+# pointer_fields are the mandatory grouped or custom-typed fields of grouped IEs
+# generated as pointers, as optional ones are, so that a missing one reads as
+# nil rather than as a zero value. These two are the ones made pointers by hand;
+# PLAN.md C2 makes it the rule for every mandatory IE
+pointer_fields = {("Create PDR", "PDI"), ("Create QER", "Gate Status")}
+
+# groupPresence is the presence a field of grouped IE g is generated with
+def groupPresence(g, ie, customType):
+    if customType and ie["presence"] == "M" and (g, ie["ie_value"]) in pointer_fields:
+        return "C"
+    return ie["presence"]
+
 tmp = []
 #write group IEs data structures
 for (k, v) in sorted_group_list:
     groupName = v_cap(k)
     groupType = groupName
 
-    f = open(outdir + groupName +'.go', 'w')
-    output_header_to_file(f)
-    f.write("import (\n")
-    f.write("\"" + ndnTlv+ "\"\n")
-    f.write(")\n")
+    f = io.StringIO()
 
 
     f.write("\n/* \'" + k + "\' data structure */\n")
@@ -865,7 +910,7 @@ for (k, v) in sorted_group_list:
         if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
             f.write("%s []%s //%s\n" %(ieName, ieType, ieKey))
         else:
-            if ie["presence"] == "M" or ieType == "[]byte":
+            if groupPresence(k, ie, customType) == "M" or ieType == "[]byte":
                 f.write("%s %s //%s\n" %(ieName, ieType, ieKey))
             else:
                 f.write("%s *%s //%s\n" %(ieName, ieType, ieKey))
@@ -896,7 +941,7 @@ for (k, v) in sorted_group_list:
         if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
             write_field_multi_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"])
         else:
-            write_field_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"], ie["presence"])
+            write_field_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"], groupPresence(k, ie, customType))
 
     f.write("return tlv.TLV(" + v_upper(k)+ "_TYPE, fields...)\n")
     f.write("}\n")
@@ -905,8 +950,8 @@ for (k, v) in sorted_group_list:
     #binary unmashaller
     f.write("func (t *" + groupType + ") UnmarshalBinary(buf []byte) (err error) {\n")
     f.write("*t = " + groupType + "{}\n")
-    f.write("d := tlv.DecodingBuffer(buf)\n")
-    f.write("for _, de := range d.Elements() {\n")
+    f.write("elements, err := tlv.Elements(buf)\nif err != nil {\nreturn\n}\n")
+    f.write("for _, de := range elements {\n")
     f.write("switch de.Type {\n")
     for ie in group_list[k]["ies"]:
         ieKey = ie["ie_type"]
@@ -926,7 +971,7 @@ for (k, v) in sorted_group_list:
         if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
             write_unmarshal_multi_ie(f, ieName, customType, ie["size"])
         else:
-            write_unmarshal_ie(f, ieName, customType, ie["size"], ie["presence"])
+            write_unmarshal_ie(f, ieName, customType, ie["size"], groupPresence(k, ie, customType))
 
     f.write("default:\n")
     f.write("err = tlv.ErrCritical\n")
@@ -940,183 +985,114 @@ for (k, v) in sorted_group_list:
     f.write("}\n")
     f.write("\n")
 
+    write_go_file(ieDir + groupName + '.go', 'ie', f.getvalue())
 
-    f.close()
 
-
-f = open(outdir + 'message.go', 'w')
-output_header_to_file(f)
-f.write("import (\n")
-f.write("\"" + ndnTlv+ "\"\n")
-f.write(")\n")
-
+# messages: a file per message and its response, in package message, every IE
+# type and tag qualified by package ie, and i the loop variable, since ie is the
+# package
+msgFiles = {}
+msgOrder = []
 for (k, v) in sorted_msg_list:
     msgType = v_cap(k)
-    msgTag = "MSG_" + v_upper(k)+ "_TYPE"
-    if "ies" in msg_list[k]:
-        f.write("\n/* \'" + k + "\' data structure */\n")
-        f.write("type " + msgType + " struct {\n")
-        
-        for ie in msg_list[k]["ies"]:
-            ieKey = ie["ie_type"]
-            ieName = v_cap(ie["ie_value"])
-            ie["goType"] = v_cap(ieKey)
+    msgTag = "ie.MSG_" + v_upper(k)+ "_TYPE"
+    if "ies" not in msg_list[k]:
+        continue
+    fileName = re.sub('(Request|Response)$', '', msgType)
+    if fileName not in msgFiles:
+        msgFiles[fileName] = io.StringIO()
+        msgOrder.append(fileName)
+    f = msgFiles[fileName]
 
-            if ieKey not in group_list and ieKey not in custom_types:
-                ieSize = 0
-                if "size" in type_list[ieKey]:
-                    ieSize = type_list[ieKey]["size"]
-
-                ie["size"] = ieSize
-
-                if ieSize == 0:
-                    ie["goType"] = "[]byte"
-                elif ieSize == 1:
-                    ie["goType"] = "uint8"
-                elif ieSize == 2:
-                    ie["goType"] = "uint16"
-                elif ieSize == 3:
-                    ie["goType"] = "uint32"
-                elif ieSize == 4:
-                    ie["goType"] = "uint32"
-                else:
-                    assert False, "Unknown size = %d for key = %s" % (ieSize, ieKey)
-
-            ieType = ie["goType"]
-            if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
-                f.write("%s []%s //%s\n" % (ieName, ieType, ieKey))
-            else:
-                if ie["presence"] == "M":
-                    f.write("%s %s //%s\n" % (ieName, ieType, ieKey))
-                elif ieType == "[]byte":
-                    f.write("%s []byte //%s\n" % (ieName, ieKey))
-                else:
-                    f.write("%s *%s //%s\n" % (ieName, ieType, ieKey))
-
-        f.write("}\n")
-        f.write("\n")
-
-        #fielder
-        f.write("func (t *" + msgType + ") Field() tlv.Field {\n")
-        f.write("fields := []tlv.Field{}\n")
-        for ie in msg_list[k]["ies"]:
-            ieKey = ie["ie_type"]
-            ieName = v_cap(ie["ie_value"])
-            ieTag = v_upper(ieKey) + "_TYPE"
-            customType = None
-            if ieKey in group_list or ieKey in custom_types:
-                customType = v_cap(ieKey)
-
+    for ie in msg_list[k]["ies"]:
+        ieKey = ie["ie_type"]
+        ie["customType"] = None
+        if ieKey in group_list or ieKey in custom_types:
+            ie["customType"] = "ie." + v_cap(ieKey)
+            ie["goType"] = ie["customType"]
             ie["size"] = 0
-            if ieKey not in group_list and ieKey not in custom_types:
-                ieSize = 0
-                if "size" in type_list[ieKey]:
-                    ieSize = type_list[ieKey]["size"]
+        else:
+            ieSize = 0
+            if "size" in type_list[ieKey]:
+                ieSize = type_list[ieKey]["size"]
+            if ieSize not in (0, 1, 2, 3, 4):
+                assert False, "Unknown size = %d for key = %s" % (ieSize, ieKey)
+            ie["size"] = ieSize
+            ie["goType"] = get_types(ieSize)[1]
+        ie["isGroup"] = ieKey in group_list
+        ie["tag"] = "ie." + v_upper(ieKey) + "_TYPE"
+        ie["multi"] = type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0"
 
-                ie["size"] = ieSize
+    f.write("\n/* \'" + k + "\' data structure */\n")
+    f.write("type " + msgType + " struct {\n")
+    for ie in msg_list[k]["ies"]:
+        ieName = v_cap(ie["ie_value"])
+        ieType = ie["goType"]
+        if ie["multi"]:
+            f.write("%s []%s //%s\n" % (ieName, ieType, ie["ie_type"]))
+        elif ie["presence"] == "M" or ieType == "[]byte":
+            f.write("%s %s //%s\n" % (ieName, ieType, ie["ie_type"]))
+        else:
+            f.write("%s *%s //%s\n" % (ieName, ieType, ie["ie_type"]))
+    f.write("}\n\n")
 
-                if ieSize == 0:
-                    ie["goType"] = "[]byte"
-                elif ieSize == 1:
-                    ie["goType"] = "uint8"
-                elif ieSize == 2:
-                    ie["goType"] = "uint16"
-                elif ieSize == 3:
-                    ie["goType"] = "uint32"
-                elif ieSize == 4:
-                    ie["goType"] = "uint32"
-                else:
-                    assert False, "Unknown size = %d for key = %s" % (ieSize, ieKey)
+    #fielder
+    f.write("func (t *" + msgType + ") Field() tlv.Field {\n")
+    f.write("fields := []tlv.Field{}\n")
+    for ie in msg_list[k]["ies"]:
+        ieName = v_cap(ie["ie_value"])
+        if ie["multi"]:
+            write_field_multi_ie(f, ieName, ie["tag"], ie["customType"], ie["isGroup"], ie["size"], "i")
+        else:
+            write_field_ie(f, ieName, ie["tag"], ie["customType"], ie["isGroup"], ie["size"], ie["presence"])
+    f.write("return tlv.TLV(" + msgTag + ", fields...)\n")
+    f.write("}\n\n")
 
-            ieIsGroup = ieKey in group_list
-            ieType = ie["goType"]
-            if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
-                write_field_multi_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"])
-            else:
-                write_field_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"], ie["presence"])
-        f.write("return tlv.TLV(" + msgTag + ", fields...)\n")
-        f.write("}\n")
-        f.write("\n")
+    #binary unmashaller
+    f.write("func (t *" + msgType + ") UnmarshalBinary(buf []byte) (err error) {\n")
+    f.write("*t = " + msgType + "{}\n")
+    f.write("elements, err := tlv.Elements(buf)\nif err != nil {\nreturn\n}\n")
+    f.write("for _, de := range elements {\n")
+    f.write("switch de.Type {\n")
+    for ie in msg_list[k]["ies"]:
+        ieName = v_cap(ie["ie_value"])
+        f.write("case " + ie["tag"] + ":\n")
+        if ie["multi"]:
+            write_unmarshal_multi_ie(f, ieName, ie["customType"], ie["size"])
+        else:
+            write_unmarshal_ie(f, ieName, ie["customType"], ie["size"], ie["presence"])
+    f.write("default:\n")
+    f.write("err = tlv.ErrCritical\n")
+    f.write("}\n")
+    f.write("if err != nil {\n")
+    f.write("return\n")
+    f.write("}\n")
+    f.write("}\n")
+    f.write("return\n")
+    f.write("}\n\n")
 
+    #tlv unmashaller
+    f.write("func (t *" + msgType + ") UnmarshalTLV(typ uint32, buf []byte) (err error) {\n")
+    f.write("if typ != " + msgTag + " {\n")
+    f.write("err = tlv.ErrCritical\n")
+    f.write("return\n")
+    f.write("}\n\n")
+    f.write("err = t.UnmarshalBinary(buf)\n")
+    f.write("return\n")
+    f.write("}\n\n")
 
-        #binary unmashaller
-        f.write("func (t *" + msgType + ") UnmarshalBinary(buf []byte) (err error) {\n")
-        f.write("*t = " + msgType + "{}\n")
-        f.write("d := tlv.DecodingBuffer(buf)\n")
-        f.write("for _, de := range d.Elements() {\n")
-        f.write("switch de.Type {\n")
-        for ie in msg_list[k]["ies"]:
-            ieKey = ie["ie_type"]
-            ieName = v_cap(ie["ie_value"])
-            ieTag = v_upper(ieKey) + "_TYPE"
+    #json mashaller
+    f.write("func (t *" + msgType + ") MarshalJSON() (buf []byte, err error) {\n")
+    f.write("buf, err = jsonMarshal(t)\n")
+    f.write("return\n")
+    f.write("}\n\n")
 
-            customType = None
-            if ieKey in group_list or ieKey in custom_types:
-                customType = v_cap(ieKey)
+    #json unmashaller
+    f.write("func (t *" + msgType + ") UnmarshalJSON(buf []byte) (err error) {\n")
+    f.write("*t = " + msgType + "{}\n")
+    f.write("err = jsonUnmarshal(buf, t)\n")
+    f.write("return\n")
+    f.write("}\n\n")
 
-            ie["size"] = 0
-            if ieKey not in group_list and ieKey not in custom_types:
-                ieSize = 0
-                if "size" in type_list[ieKey]:
-                    ieSize = type_list[ieKey]["size"]
-
-                ie["size"] = ieSize
-
-                if ieSize == 0:
-                    ie["goType"] = "[]byte"
-                elif ieSize == 1:
-                    ie["goType"] = "uint8"
-                elif ieSize == 2:
-                    ie["goType"] = "uint16"
-                elif ieSize == 3:
-                    ie["goType"] = "uint32"
-                elif ieSize == 4:
-                    ie["goType"] = "uint32"
-                else:
-                    assert False, "Unknown size = %d for key = %s" % (ieSize, ieKey)
-
-            ieIsGroup = ieKey in group_list
-            ieType = ie["goType"]
-
-            f.write("case " + ieTag + ":\n")
-            if type_list[ieKey]["max_tlv_more"] != "0" and ie["tlv_more"] != "0":
-                write_unmarshal_multi_ie(f, ieName, customType, ie["size"])
-            else:
-                write_unmarshal_ie(f, ieName, customType, ie["size"], ie["presence"])
-
-        f.write("default:\n")
-        f.write("err = tlv.ErrCritical\n")
-        f.write("}\n")
-        f.write("if err != nil {\n")
-        f.write("return\n")
-        f.write("}\n")
-        f.write("}\n")
-
-        f.write("return\n")
-        f.write("}\n\n")
-
-
-        #tlv unmashaller
-        f.write("func (t *" + msgType + ") UnmarshalTLV(typ uint32, buf []byte) (err error) {\n")
-        f.write("if typ != " + msgTag + " {\n")
-        f.write("err = tlv.ErrCritical\n")
-        f.write("return\n")
-        f.write("}\n\n")
-        f.write("err = t.UnmarshalBinary(buf)\n")
-        f.write("return\n")
-        f.write("}\n\n")
-
-        #json mashaller
-        f.write("func (t *" + msgType + ") MarshalJSON() (buf []byte, err error) {\n")
-        f.write("buf, err = jsonMarshal(t)\n")
-        f.write("return\n")
-        f.write("}\n\n")
-
-        #json unmashaller
-        f.write("func (t *" + msgType + ") UnmarshalJSON(buf []byte) (err error) {\n")
-        f.write("*t = " + msgType + "{}\n")
-        f.write("err = jsonUnmarshal(buf, t)\n")
-        f.write("return\n")
-        f.write("}\n\n")
-
-f.close()
+for fileName in msgOrder:
+    write_go_file(msgDir + fileName + '.go', 'message', msgFiles[fileName].getvalue())

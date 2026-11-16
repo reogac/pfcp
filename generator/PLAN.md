@@ -42,6 +42,9 @@ recorded here.
 
 ## Phase B — reproduce today's library
 
+*Done 2026-11-16.* 96 of the 107 generated files come out exactly. The other 11 differ only
+in the three ways the end of this phase lists.
+
 Change only the templates, until regenerating writes the library as it is. Nothing changes for
 any caller in this phase.
 
@@ -60,10 +63,24 @@ any caller in this phase.
     stays.
   - **`NewForwardingParameters`** moves to a hand-written helper file.
 
-**Acceptance:** regenerate, then diff against the library. The only differences left are the
-ones phase C makes on purpose, listed here:
-- the seven repeated-bytes fields the first commit made single;
-- the PDR lists of 2c99995, which C1 produces from the specification.
+**As built:**
+- The form is generated: packages, imports written only when used, qualified marshallers,
+  `tlv.Elements`, `i` in messages, a file per message pair.
+- **The pointer rule is narrower than it looked.** Only Create PDR's PDI and Create QER's Gate
+  Status were made pointers by hand; nine other mandatory custom-typed fields are values. The
+  generator names the two (`pointer_fields`), and C2 makes it the rule for all.
+- **A presence override** (`presence_overrides`): MBS Session N4mb Control Information is M on
+  N4mb alone. Its Sxa, Sxb, Sxc and N4 columns are "-", which the generator does not read, so as
+  a value it went out on every N4 request (4d0c2a1).
+- **The two hand-written constructors** moved to `ie/constructors.go`.
+
+**What still differs, all of it phase C's:**
+- **The repeated-bytes IEs:** User Plane IP Resource Information in the association messages,
+  and PDI's and Create Traffic Endpoint's Framed-Route and Framed-IPv6-Route. The generator
+  writes lists; the library made them single by hand. They stay lists (decided).
+- **Create PDR's QER ID, and Update PDR's QER and URR IDs:** lists in the library (2c99995),
+  single in the generator until C1.
+- **Reporting Triggers and Usage Report Trigger:** C7.
 
 ## Phase C — the rules fixed
 
@@ -96,6 +113,12 @@ here.
 - **C5 — no row is dropped.** Two rows of one IE type in a grouped IE are both kept: PDI's Local
   F-TEID and Local F-TEID for Redundant Transmission, removed today by name. The representation
   is decided below.
+- **C7 — the 3-octet IEs.** Reporting Triggers (§8.2.19, Figure 8.2.19-1) and Usage Report
+  Trigger (§8.2.41, Figure 8.2.41-1) are octets 5 to 7. The generator encodes them as 3 octets;
+  the library encodes 4 (`MarshalUint32`, since its first commit), one more than the
+  specification and readable by no other implementation. Regenerating fixes the encoding. Each
+  is a `uint32` of flags, so Volantis must be checked for which bits the octets land in: its flag
+  constants, and the UPF's byte reversal of the usage report trigger.
 - **C6 — fewer things that break silently on a new release:**
   - message tables found by title, not by hard-coded docx index;
   - leaf sizes checked against the IE definitions;
