@@ -18,6 +18,12 @@ func (t *PFCPVersionNotSupportedResponse) Field() tlv.Field {
 	return tlv.TLV(ie.MSG_PFCP_VERSION_NOT_SUPPORTED_RESPONSE_TYPE, fields...)
 }
 
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPVersionNotSupportedResponse) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
+}
+
 func (t *PFCPVersionNotSupportedResponse) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPVersionNotSupportedResponse{}
 	elements, err := tlv.Elements(buf)

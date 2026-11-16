@@ -46,6 +46,12 @@ func (t *PFCPNodeReportRequest) Field() tlv.Field {
 	return tlv.TLV(ie.MSG_PFCP_NODE_REPORT_REQUEST_TYPE, fields...)
 }
 
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPNodeReportRequest) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
+}
+
 func (t *PFCPNodeReportRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPNodeReportRequest{}
 	elements, err := tlv.Elements(buf)
@@ -176,6 +182,12 @@ func (t *PFCPNodeReportResponse) Field() tlv.Field {
 		fields = append(fields, tlv.TLVFrom(ie.OFFENDING_IE_TYPE, tlv.Bytes(pfcp.MarshalUint16(*t.OffendingIE))))
 	}
 	return tlv.TLV(ie.MSG_PFCP_NODE_REPORT_RESPONSE_TYPE, fields...)
+}
+
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPNodeReportResponse) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
 }
 
 func (t *PFCPNodeReportResponse) UnmarshalBinary(buf []byte) (err error) {

@@ -24,6 +24,12 @@ func (t *PFCPSessionSetModificationRequest) Field() tlv.Field {
 	return tlv.TLV(ie.MSG_PFCP_SESSION_SET_MODIFICATION_REQUEST_TYPE, fields...)
 }
 
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPSessionSetModificationRequest) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
+}
+
 func (t *PFCPSessionSetModificationRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionSetModificationRequest{}
 	elements, err := tlv.Elements(buf)
@@ -107,6 +113,12 @@ func (t *PFCPSessionSetModificationResponse) Field() tlv.Field {
 		fields = append(fields, tlv.TLVFrom(ie.OFFENDING_IE_TYPE, tlv.Bytes(pfcp.MarshalUint16(*t.OffendingIE))))
 	}
 	return tlv.TLV(ie.MSG_PFCP_SESSION_SET_MODIFICATION_RESPONSE_TYPE, fields...)
+}
+
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPSessionSetModificationResponse) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
 }
 
 func (t *PFCPSessionSetModificationResponse) UnmarshalBinary(buf []byte) (err error) {

@@ -130,6 +130,12 @@ func (t *PFCPSessionEstablishmentRequest) Field() tlv.Field {
 	return tlv.TLV(ie.MSG_PFCP_SESSION_ESTABLISHMENT_REQUEST_TYPE, fields...)
 }
 
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPSessionEstablishmentRequest) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
+}
+
 func (t *PFCPSessionEstablishmentRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPSessionEstablishmentRequest{}
 	elements, err := tlv.Elements(buf)
@@ -493,6 +499,12 @@ func (t *PFCPSessionEstablishmentResponse) Field() tlv.Field {
 		fields = append(fields, i.Field())
 	}
 	return tlv.TLV(ie.MSG_PFCP_SESSION_ESTABLISHMENT_RESPONSE_TYPE, fields...)
+}
+
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPSessionEstablishmentResponse) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
 }
 
 func (t *PFCPSessionEstablishmentResponse) UnmarshalBinary(buf []byte) (err error) {

@@ -66,6 +66,12 @@ func (t *PFCPAssociationSetupRequest) Field() tlv.Field {
 	return tlv.TLV(ie.MSG_PFCP_ASSOCIATION_SETUP_REQUEST_TYPE, fields...)
 }
 
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPAssociationSetupRequest) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
+}
+
 func (t *PFCPAssociationSetupRequest) UnmarshalBinary(buf []byte) (err error) {
 	*t = PFCPAssociationSetupRequest{}
 	elements, err := tlv.Elements(buf)
@@ -255,6 +261,12 @@ func (t *PFCPAssociationSetupResponse) Field() tlv.Field {
 		fields = append(fields, tlv.TLVFrom(ie.NF_INSTANCE_ID_TYPE, tlv.Bytes(t.UPFInstanceID)))
 	}
 	return tlv.TLV(ie.MSG_PFCP_ASSOCIATION_SETUP_RESPONSE_TYPE, fields...)
+}
+
+// Skipped is what decoding left out: IEs unknown or not defined here
+// (TS 29.244 7.6.9), and optional ones discarded for a faulty value (7.6.8).
+func (t *PFCPAssociationSetupResponse) Skipped() (unknown, invalid []uint32) {
+	return t.Unknown, t.Invalid
 }
 
 func (t *PFCPAssociationSetupResponse) UnmarshalBinary(buf []byte) (err error) {
