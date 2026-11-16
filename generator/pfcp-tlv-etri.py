@@ -15,7 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from docx import Document
+# python-docx is needed only to parse the specification again: a run from
+# cache/ alone needs nothing beyond the standard library
+def Document(path):
+    if not (os.path.isfile(path) and os.access(path, os.R_OK)):
+        d_error("cache/ is incomplete, and cannot read the specification: " + path)
+    from docx import Document as parse
+    return parse(path)
 import re, os, sys, string, io
 import datetime
 import getopt
@@ -48,7 +54,7 @@ def d_info(string):
 
 def d_error(string):
     sys.stderr.write(FAIL + string + ENDC + "\n")
-    sys.exit(0)
+    sys.exit(1)
 
 def write_file(f, string):
     f.write(string)
@@ -457,10 +463,6 @@ msgDir = outdir + 'message/'
 os.makedirs(ieDir, exist_ok=True)
 os.makedirs(msgDir, exist_ok=True)
 
-if os.path.isfile(filename) and os.access(filename, os.R_OK):
-    file = open(filename, 'r')
-else:
-    d_error("Cannot find file : " + filename)
 
 d_info("[Message List]")
 cachefile = cachedir + 'tlv-msg-list.py'
