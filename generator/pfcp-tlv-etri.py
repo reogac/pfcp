@@ -925,63 +925,80 @@ def groupPresence(g, ie, customType):
     return ie["presence"]
 
 tmp = []
+# Two rows of one IE type in a grouped IE: the Local F-TEID and the Local F-TEID
+# for Redundant Transmission of Created PDR, Created Traffic Endpoint and Updated
+# PDR, both of type F-TEID. TS 29.244 tells them apart by neither an order nor
+# any marker, and Updated PDR's table lists them the other way round. So this is
+# an assumption, stated once: the first occurrence on the wire is the Local
+# F-TEID and a second the one for redundant transmission, and they are encoded
+# in that order whatever the table's. Any other pair of one type stops the
+# generator, so that a new release cannot add one unseen
+redundant_suffix = " for Redundant Transmission"
+
+def paired_rows(k):
+    pairs = {}
+    rows = group_list[k]["ies"]
+    for ie in rows:
+        same = [r for r in rows if r["ie_type"] == ie["ie_type"]]
+        if len(same) < 2:
+            continue
+        first = [r for r in same if not r["ie_value"].endswith(redundant_suffix)]
+        second = [r for r in same if r["ie_value"].endswith(redundant_suffix)]
+        assert len(same) == 2 and len(first) == 1 and len(second) == 1, \
+            "%s: rows %s share IE type %s" % (k, [r["ie_value"] for r in same], ie["ie_type"])
+        pairs[ie["ie_type"]] = (first[0], second[0])
+    return pairs
+
+# encoding_order is the rows in the table's order, but for the second of a
+# pair, moved to just after the first
+def encoding_order(k, pairs):
+    out = []
+    for ie in group_list[k]["ies"]:
+        if ie["ie_type"] in pairs:
+            first, second = pairs[ie["ie_type"]]
+            if ie is first:
+                out.extend([first, second])
+            continue
+        out.append(ie)
+    return out
+
+def custom_type_of(ieKey):
+    if ieKey in group_list or ieKey in custom_types:
+        return v_cap(ieKey)
+    return None
+
 #write group IEs data structures
 for (k, v) in sorted_group_list:
     groupName = v_cap(k)
     groupType = groupName
+    rows = group_list[k]["ies"]
+    pairs = paired_rows(k)
 
     f = io.StringIO()
 
-
     f.write("\n/* \'" + k + "\' data structure */\n")
     f.write("type " + groupType + " struct {\n")
-
-    for ie in group_list[k]["ies"]:
+    for ie in rows:
         ieKey = ie["ie_type"]
-        ieName = v_cap(ie["ie_value"])
-
-        #special case where there was a duplicated TLV tag, just drop it
-        if ieName == "LocalFTEIDforRedundantTransmission": #drop this IE
-            continue
-
-        ieType = ie["goType"] 
-        customType = None
-        if ieKey in group_list or ieKey in custom_types:
-            customType = v_cap(ieKey)
-            ieType = customType
-
-
-        field_decl(f, ieName, ieType, ieKey, repeats(k, ie),
+        customType = custom_type_of(ieKey)
+        ieType = customType if customType else ie["goType"]
+        field_decl(f, v_cap(ie["ie_value"]), ieType, ieKey, repeats(k, ie),
                    groupPresence(k, ie, customType) == "M" or ieType == "[]byte")
     f.write("}\n")
     f.write("\n")
 
-        
     #fielder
     f.write("func (t *" + groupType + ") Field() tlv.Field {\n")
     f.write("fields := []tlv.Field{}\n")
-
-    for ie in group_list[k]["ies"]:
+    for ie in encoding_order(k, pairs):
         ieKey = ie["ie_type"]
         ieName = v_cap(ie["ie_value"])
         ieTag = v_upper(ieKey) + "_TYPE"
-
-        if ieName == "LocalFTEIDforRedundantTransmission": #drop this IE
-            continue
-
-        customType = None
-        if ieKey in group_list or ieKey in custom_types:
-                customType = v_cap(ieKey)
-
-        ieIsGroup = ieKey in group_list
-
-        ieType = ie["goType"] 
-
+        customType = custom_type_of(ieKey)
         if repeats(k, ie):
-            write_field_multi_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"])
+            write_field_multi_ie(f, ieName, ieTag, customType, ieKey in group_list, ie["size"])
         else:
-            write_field_ie(f, ieName, ieTag, customType, ieIsGroup, ie["size"], groupPresence(k, ie, customType))
-
+            write_field_ie(f, ieName, ieTag, customType, ieKey in group_list, ie["size"], groupPresence(k, ie, customType))
     f.write("return tlv.TLV(" + v_upper(k)+ "_TYPE, fields...)\n")
     f.write("}\n")
     f.write("\n")
@@ -990,26 +1007,29 @@ for (k, v) in sorted_group_list:
     f.write("func (t *" + groupType + ") UnmarshalBinary(buf []byte) (err error) {\n")
     f.write("*t = " + groupType + "{}\n")
     f.write("elements, err := tlv.Elements(buf)\nif err != nil {\nreturn\n}\n")
-    singles = [ie for ie in group_list[k]["ies"]
-               if not repeats(k, ie) and v_cap(ie["ie_value"]) != "LocalFTEIDforRedundantTransmission"]
+    singles = [ie for ie in rows if not repeats(k, ie)]
     if singles:
         f.write("var seen [%d]bool\n" % len(singles))
     f.write("for _, de := range elements {\n")
     f.write("switch de.Type {\n")
-    for ie in group_list[k]["ies"]:
+    for ie in rows:
         ieKey = ie["ie_type"]
         ieName = v_cap(ie["ie_value"])
-
-        if ieName == "LocalFTEIDforRedundantTransmission": #drop this IE
-            continue
-
-        customType = None
-        if ieKey in group_list or ieKey in custom_types:
-                customType = v_cap(ieKey)
-        
-        ieType = ie["goType"] 
+        customType = custom_type_of(ieKey)
         ieTag = v_upper(ieKey) + "_TYPE"
-
+        if ieKey in pairs:
+            first, second = pairs[ieKey]
+            if ie is not first:
+                continue
+            # the first occurrence fills the first row, a second the second
+            a, b = singles.index(first), singles.index(second)
+            f.write("case " + ieTag + ":\n")
+            f.write("if !seen[%d] {\nseen[%d] = true\n" % (a, a))
+            write_unmarshal_ie(f, v_cap(first["ie_value"]), customType, first["size"], groupPresence(k, first, customType))
+            f.write("} else if !seen[%d] {\nseen[%d] = true\n" % (b, b))
+            write_unmarshal_ie(f, v_cap(second["ie_value"]), customType, second["size"], groupPresence(k, second, customType))
+            f.write("} else {\ncontinue\n}\n")
+            continue
         f.write("case " + ieTag + ":\n")
         if repeats(k, ie):
             write_unmarshal_multi_ie(f, ieName, customType, ie["size"])

@@ -158,10 +158,21 @@ A separate step, so that its diff holds only what changed between releases:
 - **Repeated IEs are lists**, a repeated `[]byte` IE included (`[][]byte`). The Go type of a
   repeated IE stays open for later change, behind one function of the generator (C1).
 
-- **Mandatory IEs are pointers (C2)**, and the decoder reports a mandatory IE that is missing: a
-  value cannot tell a missing mandatory IE from a zero one.
-- **An unknown or unexpected IE is skipped and its type returned beside the decoded message
-  (C3)**, so the caller can log it as §7.6.9 asks.
-- **Two rows of one IE type in a grouped IE are two fields, filled in order (C5)**, as the rows
-  name two meanings.
+- **Mandatory IEs stay values (C2, revised 2026-11-16).** Pointers for all of them would change
+  most of the API: PDR ID, FAR ID, Node ID and the rest. The decoder reports a missing one
+  instead, as a typed error naming its IE type, from the seen flags C4 keeps. A UPF answers it
+  with Cause "Mandatory IE missing" and the Offending IE. Only rows mandatory **on N4** are
+  checked: a row is M on the interfaces its columns mark, and MBS Session N4mb Control
+  Information is M on N4mb and "-" on N4. So the parse reads the N4 column. The two hand-made
+  pointers, PDI and Gate Status, go back to values.
+- **An unknown or unexpected IE is skipped and recorded (C3, revised 2026-11-16).** Every message
+  and grouped IE has `Unknown []uint32` (`json:"-"`), the types skipped. A grouped IE's are
+  merged into its parent's, so a caller reads the message's alone and logs it, as §7.6.9 asks.
+  `UnmarshalBinary` has no room to return them beside the message, and an error would read as a
+  failure.
+- **Two rows of one IE type in a grouped IE (C5, revised 2026-11-16):** the two F-TEID rows of
+  Created PDR, Created Traffic Endpoint and Updated PDR. TS 29.244 gives no order between them,
+  and Updated PDR lists them the other way round. So it is a fixed rule, stated as an
+  assumption: the first F-TEID on the wire is the Local F-TEID, a second the one for redundant
+  transmission, and they are encoded in that order whatever the table's.
 - **The correction stays on v17.7.1**; Release 19 is phase F.
