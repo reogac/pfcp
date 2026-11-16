@@ -66,3 +66,24 @@ func UnmarshalUint32(buf []byte, v *uint32) error {
 	*v = binary.BigEndian.Uint32(buf[:])
 	return nil
 }
+
+// UnmarshalExtendable reads an Extendable IE of `known` octets into v, big
+// endian. TS 29.244 8.1.2: an Extendable IE has a variable number of octets, at
+// least the `min` it had when first defined, and "the legacy receiving entity
+// shall ignore the unknown octets". So a value shorter than `known` but at least
+// `min` long, an older sender's, leaves the octets it lacks 0, and one longer
+// than `known`, a newer sender's, has its further octets ignored.
+func UnmarshalExtendable[T uint8 | uint16 | uint32](buf []byte, min, known int, v *T) error {
+	if len(buf) < min {
+		return tlv.ErrIncomplete
+	}
+	var x T
+	for i := 0; i < known; i++ {
+		x <<= 8
+		if i < len(buf) {
+			x |= T(buf[i])
+		}
+	}
+	*v = x
+	return nil
+}
