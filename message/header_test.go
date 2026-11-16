@@ -10,7 +10,10 @@ import (
 )
 
 // goPfcpMessages are whole messages as github.com/wmnsk/go-pfcp v0.0.24 writes
-// them, captured once rather than imported.
+// them, captured once rather than imported. The establishment requests carry a
+// Create PDR and a Create FAR, mandatory on N4. In the one with a priority, the
+// priority is in bits 8-5 of the header's last octet (TS 29.244 7.2.2.1): go-pfcp
+// writes the value it is given unshifted, so that octet was set by hand.
 var goPfcpMessages = []struct {
 	name     string
 	wire     string
@@ -21,8 +24,8 @@ var goPfcpMessages = []struct {
 	{"heartbeat request", "2001000c1234560000600004e8fe6f80", 0, 0x123456, 0},
 	{"heartbeat response", "2002000cffffff0000600004e8fe6f80", 0, 0xffffff, 0},
 	{"association setup request", "2005001500000900003c0005000a00000100600004e8fe6f80", 0, 9, 0},
-	{"establishment request", "21320026000000000000000000000700003c0005000a0000010039000d020000000000000abc0a000001", 0, 7, 0},
-	{"establishment request with priority", "23320026000000000000000000000830003c0005000a0000010039000d020000000000000abc0a000001", 0, 8, 3},
+	{"establishment request", "21320052000000000000000000000700003c0005000a0000010039000d020000000000000abc0a00000100010017003800020001001d0004000000640002000500140001000003000d006c000400000001002c000102", 0, 7, 0},
+	{"establishment request with priority", "23320052000000000000000000000830003c0005000a0000010039000d020000000000000abc0a00000100010017003800020001001d0004000000640002000500140001000003000d006c000400000001002c000102", 0, 8, 3},
 	{"report request", "213800111122334455667788010203000027000102", 0x1122334455667788, 0x010203, 0},
 	{"deletion response", "21370011000000000000dead000005000013000101", 0xdead, 5, 0},
 }

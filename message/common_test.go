@@ -3,8 +3,8 @@ package message
 import (
 	"encoding/binary"
 	"encoding/json"
-	"github.com/reogac/pfcp/ie"
 	"fmt"
+	"github.com/reogac/pfcp/ie"
 	"net"
 	"testing"
 )
@@ -21,11 +21,11 @@ func Test_pfcp(t *testing.T) {
 		{
 			PDRID:      1,
 			Precedence: 100,
-			PDI: &ie.PDI{
+			PDI: ie.PDI{
 				LocalFTEID:      ie.NewFTEID(&nodeId, nil, 12),
 				SourceInterface: 1,
 				NetworkInstance: []byte{1},
-				UEIPaddress:     ie.NewUEIPAddress(nil, &nodeId),
+				UEIPaddress:     []ie.UEIPAddress{*ie.NewUEIPAddress(nil, &nodeId)},
 				SDFFilter: []ie.SDFFilter{
 					*ie.NewSDFFilter("alo", "hi", "chao", "bye", 12),
 				},
@@ -39,11 +39,11 @@ func Test_pfcp(t *testing.T) {
 		{
 			PDRID:      2,
 			Precedence: 100,
-			PDI: &ie.PDI{
+			PDI: ie.PDI{
 				LocalFTEID:      ie.NewFTEID(&nodeId, nil, 12),
 				SourceInterface: 1,
 				NetworkInstance: []byte{1},
-				UEIPaddress:     ie.NewUEIPAddress(nil, &nodeId),
+				UEIPaddress:     []ie.UEIPAddress{*ie.NewUEIPAddress(nil, &nodeId)},
 				SDFFilter: []ie.SDFFilter{
 					*ie.NewSDFFilter("alo", "hi", "chao", "bye", 12),
 				},
@@ -89,7 +89,7 @@ func Test_pfcp(t *testing.T) {
 	createQer := []ie.CreateQER{
 		{
 			QERID: 1,
-			GateStatus: &ie.GateStatus{
+			GateStatus: ie.GateStatus{
 				Ul: 100,
 				Dl: 100,
 			},
