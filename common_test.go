@@ -31,3 +31,12 @@ func TestAnExtendableIEDecodesAnyLengthFromItsMinimum(t *testing.T) {
 		t.Errorf("a PDR ID with an octet more: %d, %v", id, err)
 	}
 }
+
+// A 3-octet value is its low three octets, and reads back.
+func TestThreeOctetsRoundTrip(t *testing.T) {
+	b := Marshal3Bytes(0x123456)
+	var v uint32
+	if len(b) != 3 || b[0] != 0x12 || b[2] != 0x56 || Unmarshal3Bytes(b, &v) != nil || v != 0x123456 {
+		t.Errorf("% x read back as %06x", b, v)
+	}
+}

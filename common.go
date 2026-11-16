@@ -35,10 +35,12 @@ func UnmarshalUint16(buf []byte, v *uint16) error {
 	*v = binary.BigEndian.Uint16(buf[:])
 	return nil
 }
+// Marshal3Bytes writes the low three octets of v, big endian. It wrote four
+// octets into the last three of its buffer, and so panicked on every call
 func Marshal3Bytes(v uint32) []byte {
 	var buf [4]byte
-	binary.BigEndian.PutUint32(buf[1:], v)
-	return buf[:]
+	binary.BigEndian.PutUint32(buf[:], v)
+	return buf[1:]
 }
 func Unmarshal3Bytes(buf []byte, v *uint32) error {
 	if len(buf) < 3 {
