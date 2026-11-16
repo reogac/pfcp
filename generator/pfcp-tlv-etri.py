@@ -87,7 +87,7 @@ def merge_unknown(f, isGroup, value):
     if isGroup:
         f.write("t.Unknown = append(t.Unknown, %s.Unknown...)\n" % value)
 
-def write_unmarshal_multi_ie(f, ieName, customType, ieSize, isGroup=False):
+def write_unmarshal_multi_ie(f, ieName, customType, ieSize, isGroup=False, ieKey=None):
     m, t = get_types(ieSize) 
     if customType:
         f.write("var v %s\n" % customType)
@@ -99,7 +99,7 @@ def write_unmarshal_multi_ie(f, ieName, customType, ieSize, isGroup=False):
         f.write("t." + ieName + " = append(t." + ieName + ", de.Value)\n")
     else:
         f.write("var v " + t+ "\n")
-        f.write("if err = pfcp.Unmarshal%s(de.Value, &v); err == nil {\n" % m)
+        f.write("if err = " + unmarshal_fn(ieKey, m) + "&v); err == nil {\n")
         f.write("t." + ieName + " = append(t." + ieName + ", v)\n")
         f.write("}\n")
 
@@ -127,7 +127,7 @@ def write_mandatory_checks(f, checks):
 def write_first_only(f, idx):
     f.write("if seen[%d] {\ncontinue\n}\nseen[%d] = true\n" % (idx, idx))
 
-def write_unmarshal_ie(f, ieName, customType, ieSize, presence, isGroup=False):
+def write_unmarshal_ie(f, ieName, customType, ieSize, presence, isGroup=False, ieKey=None):
     m, t = get_types(ieSize) 
     if customType:
         if presence == "M":
@@ -144,10 +144,10 @@ def write_unmarshal_ie(f, ieName, customType, ieSize, presence, isGroup=False):
         f.write("t.%s = de.Value\n" % ieName)
     else:
         if presence == "M":
-            f.write("err = pfcp.Unmarshal%s(de.Value, &t.%s)\n" % (m, ieName))
+            f.write("err = " + unmarshal_fn(ieKey, m) + "&t.%s)\n" % ieName)
         else:
             f.write("var v %s\n" % t)
-            f.write("if err = pfcp.Unmarshal%s(de.Value, &v); err == nil {\n" % m)
+            f.write("if err = " + unmarshal_fn(ieKey, m) + "&v); err == nil {\n")
             f.write("t." + ieName + " = &v\n")
             f.write("}\n")
 
@@ -523,9 +523,13 @@ else:
         key = re.sub('\)', '', key)
         key = re.sub('\s*$', '', key)
 
-        type_list[key] = { "type": type , "max_tlv_more" : "0" }
+        # the 3rd column: Fixed Length, Variable Length or Extendable; the
+        # 4th: the octets the IE had when first defined (TS 29.244 8.1.2)
+        kind = re.sub(r'\s*/.*$', '', row.cells[2].text.strip().split('\n')[0]).strip()
+        fixed = row.cells[3].text.strip()
+        type_list[key] = { "type": type , "max_tlv_more" : "0", "kind" : kind, "fixed" : fixed }
         write_file(f, "type_list[\"" + key + "\"] = { \"type\" : \"" + type)
-        write_file(f, "\", \"max_tlv_more\" : \"0\" }\n")
+        write_file(f, "\", \"max_tlv_more\" : \"0\", \"kind\" : \"" + kind + "\", \"fixed\" : \"" + fixed + "\" }\n")
     f.close()
 
 d_info("[Group IE List]")
@@ -754,6 +758,29 @@ type_list["Quota Validity Time"]["size"] = 4                # Type 181
 type_list["PFCPSEReq-Flags"]["size"] = 1                    # Type 186
 type_list["Data Status"]["size"] = 1                        # Type 260
 
+
+# every hard-coded size is checked against the IE type table: a Fixed Length IE
+# has exactly its octets, an Extendable one at least the octets it was first
+# defined with. A size the table contradicts stops the generator
+for name, t in type_list.items():
+    if "size" not in t:
+        continue
+    fixed = int(t["fixed"])
+    if t["kind"].startswith("Fixed"):
+        assert t["size"] == fixed, "%s: size %d, a Fixed Length IE of %d octets" % (name, t["size"], fixed)
+    else:
+        assert t["kind"].startswith("Extendable") and t["size"] >= fixed, \
+            "%s: size %d, a %s IE first defined with %d octets" % (name, t["size"], t["kind"], fixed)
+
+# unmarshal_fn is the call that decodes a sized IE, up to its first argument
+# after the value: an Extendable one through pfcp.UnmarshalExtendable, which
+# takes any length from the first-defined one up and ignores octets beyond
+# those this library knows, as the legacy receiver of TS 29.244 8.1.2 must
+def unmarshal_fn(ieKey, m):
+    t = type_list.get(ieKey, {})
+    if ieKey and t.get("kind", "").startswith("Extendable") and "size" in t:
+        return "pfcp.UnmarshalExtendable(de.Value, %d, %d, " % (int(t["fixed"]), t["size"])
+    return "pfcp.Unmarshal%s(de.Value, " % m
 
 #TLV tags definitions
 f = open(ieDir + 'tags.go', 'w')
@@ -1102,17 +1129,17 @@ for (k, v) in sorted_group_list:
             a, b = singles.index(first), singles.index(second)
             f.write("case " + ieTag + ":\n")
             f.write("if !seen[%d] {\nseen[%d] = true\n" % (a, a))
-            write_unmarshal_ie(f, v_cap(first["ie_value"]), customType, first["size"], groupPresence(k, first, customType), ieKey in group_list)
+            write_unmarshal_ie(f, v_cap(first["ie_value"]), customType, first["size"], groupPresence(k, first, customType), ieKey in group_list, ieKey)
             f.write("} else if !seen[%d] {\nseen[%d] = true\n" % (b, b))
-            write_unmarshal_ie(f, v_cap(second["ie_value"]), customType, second["size"], groupPresence(k, second, customType), ieKey in group_list)
+            write_unmarshal_ie(f, v_cap(second["ie_value"]), customType, second["size"], groupPresence(k, second, customType), ieKey in group_list, ieKey)
             f.write("} else {\ncontinue\n}\n")
             continue
         f.write("case " + ieTag + ":\n")
         if repeats(k, ie):
-            write_unmarshal_multi_ie(f, ieName, customType, ie["size"], ieKey in group_list)
+            write_unmarshal_multi_ie(f, ieName, customType, ie["size"], ieKey in group_list, ieKey)
         else:
             write_first_only(f, singles.index(ie))
-            write_unmarshal_ie(f, ieName, customType, ie["size"], groupPresence(k, ie, customType), ieKey in group_list)
+            write_unmarshal_ie(f, ieName, customType, ie["size"], groupPresence(k, ie, customType), ieKey in group_list, ieKey)
 
     f.write("default:\n")
     f.write("t.Unknown = append(t.Unknown, de.Type)\n")
@@ -1202,10 +1229,10 @@ for (k, v) in sorted_msg_list:
         ieName = v_cap(ie["ie_value"])
         f.write("case " + ie["tag"] + ":\n")
         if ie["multi"]:
-            write_unmarshal_multi_ie(f, ieName, ie["customType"], ie["size"], ie["isGroup"])
+            write_unmarshal_multi_ie(f, ieName, ie["customType"], ie["size"], ie["isGroup"], ie["ie_type"])
         else:
             write_first_only(f, singles.index(ie))
-            write_unmarshal_ie(f, ieName, ie["customType"], ie["size"], ie["presence"], ie["isGroup"])
+            write_unmarshal_ie(f, ieName, ie["customType"], ie["size"], ie["presence"], ie["isGroup"], ie["ie_type"])
     f.write("default:\n")
     f.write("t.Unknown = append(t.Unknown, de.Type)\n")
     f.write("}\n")

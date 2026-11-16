@@ -119,6 +119,12 @@ here.
   specification and readable by no other implementation. Regenerating fixes the encoding. Each
   is a `uint32` of flags, so Volantis must be checked for which bits the octets land in: its flag
   constants, and the UPF's byte reversal of the usage report trigger.
+- **C8 — Extendable IEs decoded as TS 29.244 8.1.2 has it.** Nearly every sized IE is
+  Extendable: PDR ID, Precedence, Recovery Time Stamp, the flags. Its octet count is the minimum
+  it was first defined with, and "the legacy receiving entity shall ignore the unknown octets".
+  The decoders demanded an exact length, so a peer of a later release adding an octet had its
+  message refused. An Extendable sized IE now decodes through `pfcp.UnmarshalExtendable`: from
+  its first-defined length up, missing known octets 0, further octets ignored.
 - **C6 — fewer things that break silently on a new release:**
   - message tables found by title, not by hard-coded docx index;
   - leaf sizes checked against the IE definitions;
